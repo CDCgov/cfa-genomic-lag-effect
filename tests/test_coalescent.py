@@ -42,43 +42,10 @@ def test_grid():
 
     intervals = coalescent.CoalescentIntervals(coals, samps, rate_grid)
 
-    n_active = np.array(
-        [
-            0,
-            1,
-            2,
-            3,
-            2,
-            2,
-            1,
-            2,
-        ]
-    )
-    expected_dt = np.array(
-        [
-            1.0,
-            0.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            2.0,
-        ]
-    )
+    n_active = np.array([0, 1, 2, 3, 2, 2, 1, 2])
+    expected_dt = np.array([1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0])
     expected_nc2 = coalescent.choose2(n_active)
-    expected_indicator = np.array(
-        [
-            0,
-            0,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-        ]
-    )
+    expected_indicator = np.array([0, 0, 0, 1, 0, 1, 0, 1])
     expected_index = np.array([0, 0, 0, 0, 0, 1, 1, 1])
 
     assert np.all(intervals.dt() == expected_dt)
