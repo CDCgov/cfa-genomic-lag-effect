@@ -71,34 +71,21 @@ class CoalescentIntervals:
         #     1: change in # active lineages at event
         #     2: indicator for coalescent event specifically
         #     3: change in rate interval index at event
+        events = [
+            (coalescent_times, [-1, 1, 0]),
+            (sampling_times, [1, 0, 0]),
+            (rate_shift_times, [0, 0, 1]),
+        ]
+
         event_times = np.concatenate(
-            (
+            [
                 np.column_stack(
-                    (
-                        coalescent_times,
-                        np.repeat(-1, coalescent_times.shape),
-                        np.repeat(1, coalescent_times.shape),
-                        np.repeat(0, coalescent_times.shape),
-                    )
-                ),
-                np.column_stack(
-                    (
-                        sampling_times,
-                        np.repeat(1, sampling_times.shape),
-                        np.repeat(0, sampling_times.shape),
-                        np.repeat(0, sampling_times.shape),
-                    )
-                ),
-                np.column_stack(
-                    (
-                        rate_shift_times,
-                        np.repeat(0, rate_shift_times.shape),
-                        np.repeat(0, rate_shift_times.shape),
-                        np.repeat(1, rate_shift_times.shape),
-                    )
-                ),
-            ),
+                    [times, *[np.repeat(n, times.shape) for n in values]]
+                )
+                for times, values in events
+            ]
         )
+
         # When ties are present, puts coalescent times before rate shifts, sampling times after
         key = np.lexsort(
             (
