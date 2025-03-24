@@ -145,24 +145,28 @@ class CoalescentIntervals:
             np.argwhere(self.intervals[:, 1] > 0).T[0], :
         ]
 
+    @property
     def dt(self) -> NDArray:
         """
-        Get duration of all intervals.
+        Duration of all intervals.
         """
         return self.intervals[:, 0]
 
+    @property
     def ends_in_coalescent_indicator(self) -> NDArray:
         """
-        Get indicator for whether each interval ends in a coalescent event.
+        Indicator for whether each interval ends in a coalescent event.
         """
         return self.intervals[:, 2]
 
+    @property
     def num_active_choose_2(self) -> NDArray:
         """
         choose(# active lineages, 2) for all intervals.
         """
         return self.intervals[:, 1]
 
+    @property
     def rate_indexer(self) -> NDArray:
         """
         The element of the piecewise-constant rate function to use in each interval.
@@ -179,13 +183,13 @@ def episodic_epi_coalescent_loglik(
     """
 
     rate = (
-        intervals.num_active_choose_2()
+        intervals.num_active_choose_2
         * 2.0
-        * force_of_infection[intervals.rate_indexer()]
-        / prevalence[intervals.rate_indexer()]
+        * force_of_infection[intervals.rate_indexer]
+        / prevalence[intervals.rate_indexer]
     )
-    lnl = rate * intervals.dt() - jnp.where(
-        intervals.ends_in_coalescent_indicator(), jnp.log(rate), 0.0
+    lnl = rate * intervals.dt - jnp.where(
+        intervals.ends_in_coalescent_indicator, jnp.log(rate), 0.0
     )
     return lnl.sum()
 
@@ -276,7 +280,6 @@ def sim_episodic_epi_coalescent(
     n_active = 0
     rate_idx = 0
 
-    print(times_types)
     time = 0.0
     coal_idx = 0
     for i in range(times_types.shape[0]):
@@ -305,6 +308,8 @@ def sim_episodic_epi_coalescent(
         elif times_types[i, 1] == 1:
             n_active += 1
         else:
-            raise ValueError()
+            raise ValueError(
+                f"Unknown event type {times_types[i, 1]} at index {i}."
+            )
 
     return coalescent_times

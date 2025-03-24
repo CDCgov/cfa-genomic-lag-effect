@@ -48,12 +48,10 @@ def test_grid():
     expected_indicator = np.array([0, 0, 0, 1, 0, 1, 0, 1])
     expected_index = np.array([0, 0, 0, 0, 0, 1, 1, 1])
 
-    assert np.all(intervals.dt() == expected_dt)
-    assert np.all(intervals.num_active_choose_2() == expected_nc2)
-    assert np.all(
-        intervals.ends_in_coalescent_indicator() == expected_indicator
-    )
-    assert np.all(intervals.rate_indexer() == expected_index)
+    assert np.all(intervals.dt == expected_dt)
+    assert np.all(intervals.num_active_choose_2 == expected_nc2)
+    assert np.all(intervals.ends_in_coalescent_indicator == expected_indicator)
+    assert np.all(intervals.rate_indexer == expected_index)
 
 
 def test_lnl_runs():
