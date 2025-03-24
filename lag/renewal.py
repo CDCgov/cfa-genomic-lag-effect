@@ -5,30 +5,38 @@ import numpyro.distributions as dist
 from jax.lax import scan as jscan
 
 
-def daily_incidence(rt, rev_inf_prof, i0, init_growth_rate, init_growth_steps):
+def daily_incidence(
+    rt,
+    reversed_infectiousness_profile,
+    i0,
+    init_growth_rate,
+    init_growth_steps,
+):
     """
     Generates daily incident infection time series from daily Rt time series (rt) and reversed infectiousness profile PMF (g).
     Initializes by starting with i0 incident infections and exponential growth for init_growth_steps
     steps at rate init_growth_rate.
     Note: returns the whole time series including initialization/burnin.
     """
-    carry_len = len(rev_inf_prof + 1)
+    carry_len = len(reversed_infectiousness_profile + 1)
     init = i0 * jnp.exp(jnp.arange(init_growth_steps) * init_growth_rate)
     scan_init = init[-carry_len:]
 
     def scan_renewal(prev_incident, r):
-        incident = r * (prev_incident[-1:] * rev_inf_prof).sum()
+        incident = (
+            r * (prev_incident[-1:] * reversed_infectiousness_profile).sum()
+        )
         return jnp.concat((prev_incident[1:], jnp.array([incident]))), incident
 
     _, post_init = jscan(scan_renewal, scan_init, xs=rt)
     return jnp.concat((init, post_init))
 
 
-def daily_prevalence(incidence, gen_int):
+def daily_prevalence(incidence, generation_interval):
     """
-    Assuming all infections last for duration gen_int, get daily prevalence from daily incidence
+    Assuming all infections last for duration generation_interval, get daily prevalence from daily incidence
     """
-    gen_vec = np.repeat(1.0, gen_int)
+    gen_vec = np.repeat(1.0, generation_interval)
     return jnp.convolve(incidence, gen_vec, mode="valid")
 
 

@@ -9,10 +9,10 @@ def test_model_runs():
     samps = np.arange(14, 28)
     coals = samps[1:] + 1.5
 
-    rev_inf_prof = np.ones(5) / 5.0
-    gen_int = 5
+    reversed_infectiousness_profile = np.ones(5) / 5.0
+    generation_interval = 5
     intervals, init_growth_steps, n_weeks, renewal_t_max = lag.preprocess(
-        coals, samps, rev_inf_prof, gen_int
+        coals, samps, reversed_infectiousness_profile, generation_interval
     )
 
     rng_key = jax.random.PRNGKey(0)
@@ -26,6 +26,6 @@ def test_model_runs():
         init_growth_steps=init_growth_steps,
         n_weeks=n_weeks,
         renewal_t_max=renewal_t_max,
-        rev_inf_prof=rev_inf_prof,
-        gen_int=gen_int,
+        reversed_infectiousness_profile=reversed_infectiousness_profile,
+        generation_interval=generation_interval,
     )

@@ -17,40 +17,47 @@ class CoalescentIntervals:
     """
 
     def __init__(
-        self, coal_times: NDArray, samp_times: NDArray, rate_times: NDArray
+        self,
+        coalescent_times: NDArray,
+        sampling_times: NDArray,
+        rate_shift_times: NDArray,
     ):
-        CoalescentIntervals.assert_valid_coal_times(coal_times, samp_times)
+        CoalescentIntervals.assert_valid_coalescent_times(
+            coalescent_times, sampling_times
+        )
         self.intervals = CoalescentIntervals.construct_coalescent_intervals(
-            coal_times, samp_times, rate_times
+            coalescent_times, sampling_times, rate_shift_times
         )
 
     @staticmethod
-    def assert_valid_coal_times(
-        coal_times: NDArray, samp_times: NDArray
+    def assert_valid_coalescent_times(
+        coalescent_times: NDArray, sampling_times: NDArray
     ) -> None:
         """
         To produce a valid tree the kth-ranked (1 being the smallest)
         coalescent time must have k+1 sampling times more recent than it.
         """
-        assert len(coal_times.shape) == 1
-        assert len(samp_times.shape) == 1
-        assert coal_times.shape[0] == samp_times.shape[0] - 1
+        assert len(coalescent_times.shape) == 1
+        assert len(sampling_times.shape) == 1
+        assert coalescent_times.shape[0] == sampling_times.shape[0] - 1
 
-        srt_ct = np.sort(coal_times)
-        srt_st = np.sort(samp_times)
+        srt_ct = np.sort(coalescent_times)
+        srt_st = np.sort(sampling_times)
 
         for ct, st in zip(srt_ct, srt_st[1:]):
             assert ct >= st
 
     @staticmethod
     def construct_coalescent_intervals(
-        coal_times: NDArray, samp_times: NDArray, rate_times: NDArray
+        coalescent_times: NDArray,
+        sampling_times: NDArray,
+        rate_shift_times: NDArray,
     ):
         """
         Matrix with information required to compute the coalescent likelihood of the provided
         coalescent and sampling times given a rate function on the specified grid.
 
-        `rate_times` should be only the times of changes, one less than the number of rate intervals.
+        `rate_shift_times` should be only the times of changes, one less than the number of rate intervals.
 
         Returns matrix of intervals between events such that
         [:, 0] is the duration of the interval
@@ -68,26 +75,26 @@ class CoalescentIntervals:
             (
                 np.column_stack(
                     (
-                        coal_times,
-                        np.repeat(-1, coal_times.shape),
-                        np.repeat(1, coal_times.shape),
-                        np.repeat(0, coal_times.shape),
+                        coalescent_times,
+                        np.repeat(-1, coalescent_times.shape),
+                        np.repeat(1, coalescent_times.shape),
+                        np.repeat(0, coalescent_times.shape),
                     )
                 ),
                 np.column_stack(
                     (
-                        samp_times,
-                        np.repeat(1, samp_times.shape),
-                        np.repeat(0, samp_times.shape),
-                        np.repeat(0, samp_times.shape),
+                        sampling_times,
+                        np.repeat(1, sampling_times.shape),
+                        np.repeat(0, sampling_times.shape),
+                        np.repeat(0, sampling_times.shape),
                     )
                 ),
                 np.column_stack(
                     (
-                        rate_times,
-                        np.repeat(0, rate_times.shape),
-                        np.repeat(0, rate_times.shape),
-                        np.repeat(1, rate_times.shape),
+                        rate_shift_times,
+                        np.repeat(0, rate_shift_times.shape),
+                        np.repeat(0, rate_shift_times.shape),
+                        np.repeat(1, rate_shift_times.shape),
                     )
                 ),
             ),
@@ -164,17 +171,17 @@ class CoalescentIntervals:
 
 
 def episodic_epi_coalescent_loglik(
-    intervals: CoalescentIntervals, foi, prevalence
+    intervals: CoalescentIntervals, force_of_infection, prevalence
 ):
     """
-    Computes the likelihood of construct_epi_coalescent_grid(coal_times, samp_times, rate_times)
+    Computes the likelihood of construct_epi_coalescent_grid(coalescent_times, sampling_times, rate_shift_times)
     given the piecewise constant force of infection and piecewise constant prevalence.
     """
 
     rate = (
         intervals.num_active_choose_2()
         * 2.0
-        * foi[intervals.rate_indexer()]
+        * force_of_infection[intervals.rate_indexer()]
         / prevalence[intervals.rate_indexer()]
     )
     lnl = rate * intervals.dt() - jnp.where(
@@ -184,40 +191,42 @@ def episodic_epi_coalescent_loglik(
 
 
 def episodic_epi_coalescent_factor(
-    intervals: CoalescentIntervals, foi, prevalence
+    intervals: CoalescentIntervals, force_of_infection, prevalence
 ):
     """
-    Computes the likelihood of construct_epi_coalescent_grid(coal_times, samp_times, rate_times)
+    Computes the likelihood of construct_epi_coalescent_grid(coalescent_times, sampling_times, rate_shift_times)
     given the piecewise constant force of infection and piecewise constant prevalence.
     """
     factor(
         "coalescent_likelihood",
-        episodic_epi_coalescent_loglik(intervals, foi, prevalence),
+        episodic_epi_coalescent_loglik(
+            intervals, force_of_infection, prevalence
+        ),
     )
 
 
 def construct_epi_coalescent_sim_grid(
-    samp_times: NDArray, rate_times: NDArray
+    sampling_times: NDArray, rate_shift_times: NDArray
 ):
     """
     As construct_epi_coalescent_grid(), but without coalescent times and with a terminal
     fake rate-shift at infinity.
     """
-    assert len(samp_times.shape) == 1
-    assert len(rate_times.shape) == 1
+    assert len(sampling_times.shape) == 1
+    assert len(rate_shift_times.shape) == 1
 
     all_times = np.concatenate(
         (
             np.column_stack(
                 (
-                    samp_times,
-                    np.repeat(1, samp_times.shape),
+                    sampling_times,
+                    np.repeat(1, sampling_times.shape),
                 )
             ),
             np.column_stack(
                 (
-                    np.concat((rate_times, np.array([np.inf]))),
-                    np.repeat(0, rate_times.shape[0] + 1),
+                    np.concat((rate_shift_times, np.array([np.inf]))),
+                    np.repeat(0, rate_shift_times.shape[0] + 1),
                 )
             ),
         ),
@@ -231,30 +240,39 @@ def construct_epi_coalescent_sim_grid(
     return all_times[key, :]
 
 
+def inv_coalescent_rate(
+    prevalence: float, n_active: int, force_of_infection: float
+):
+    """
+    1/(coalescent rate)
+    """
+    return prevalence / (choose2(n_active) * 2.0 * force_of_infection)
+
+
 @np.errstate(divide="ignore")
 def sim_episodic_epi_coalescent(
     times_types: NDArray,
-    foi: NDArray,
+    force_of_infection: NDArray,
     prevalence: NDArray,
     rng=np.random.default_rng(),
 ) -> NDArray:
     """
-    Simulates coalescent times given construct_epi_coalescent_sim_grid(samp_times, rate_times),
+    Simulates coalescent times given construct_epi_coalescent_sim_grid(sampling_times, rate_shift_times),
     the piecewise constant force of infection, and the piecewise constant prevalence.
     """
     n_real_rate_shifts = (
         (times_types[:, 1] == 0) & (times_types[:, 0] < np.inf)
     ).sum()
     assert (
-        n_real_rate_shifts == foi.shape[0] - 1
-    ), f"There appear to be {n_real_rate_shifts} rate shift times in `times_types`, expected {n_real_rate_shifts + 1} foi and prevalence entries."
+        n_real_rate_shifts == force_of_infection.shape[0] - 1
+    ), f"There appear to be {n_real_rate_shifts} rate shift times in `times_types`, expected {n_real_rate_shifts + 1} force_of_infection and prevalence entries."
     assert (
-        foi.shape[0] == prevalence.shape[0]
-    ), f"Provided foi is length {foi.shape[0]} while provided prevalence is length {prevalence.shape[0]}"
+        force_of_infection.shape[0] == prevalence.shape[0]
+    ), f"Provided force_of_infection is length {force_of_infection.shape[0]} while provided prevalence is length {prevalence.shape[0]}"
 
     n_samps = (times_types[:, 1] == 1).sum()
     n_coal = n_samps - 1
-    coal_times = np.zeros(n_coal)
+    coalescent_times = np.zeros(n_coal)
     n_active = 0
     rate_idx = 0
 
@@ -262,18 +280,20 @@ def sim_episodic_epi_coalescent(
     time = 0.0
     coal_idx = 0
     for i in range(times_types.shape[0]):
-        rate_inv = prevalence[rate_idx] / (
-            choose2(n_active) * 2.0 * foi[rate_idx]
+        rate_inv = inv_coalescent_rate(
+            prevalence[rate_idx], n_active, force_of_infection[rate_idx]
         )
         while coal_idx < n_coal:
             wt = rng.exponential(rate_inv)
             if time + wt < times_types[i, 0]:
                 time += wt
-                coal_times[coal_idx] = time
+                coalescent_times[coal_idx] = time
                 coal_idx += 1
                 n_active -= 1
-                rate_inv = prevalence[rate_idx] / (
-                    choose2(n_active) * 2.0 * foi[rate_idx]
+                rate_inv = inv_coalescent_rate(
+                    prevalence[rate_idx],
+                    n_active,
+                    force_of_infection[rate_idx],
                 )
             else:
                 time = times_types[i, 0]
@@ -287,4 +307,4 @@ def sim_episodic_epi_coalescent(
         else:
             raise ValueError()
 
-    return coal_times
+    return coalescent_times

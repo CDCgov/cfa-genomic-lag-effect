@@ -10,11 +10,11 @@ def test_validate_times():
     bad_samps = samps + 10.0
 
     # Should pass
-    coalescent.CoalescentIntervals.assert_valid_coal_times(coals, samps)
+    coalescent.CoalescentIntervals.assert_valid_coalescent_times(coals, samps)
 
     # Should fail
     with pytest.raises(Exception) as e_info:
-        coalescent.CoalescentIntervals.assert_valid_coal_times(
+        coalescent.CoalescentIntervals.assert_valid_coalescent_times(
             coals, bad_samps
         )
     assert isinstance(e_info.value, AssertionError)
@@ -28,7 +28,7 @@ def test_sim_runs():
     coals = coalescent.sim_episodic_epi_coalescent(
         grid, np.arange(1, 21), np.arange(1, 21), rng
     )
-    coalescent.CoalescentIntervals.assert_valid_coal_times(coals, samps)
+    coalescent.CoalescentIntervals.assert_valid_coalescent_times(coals, samps)
 
 
 def test_grid():

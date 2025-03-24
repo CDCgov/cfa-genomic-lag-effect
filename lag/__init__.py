@@ -4,37 +4,50 @@ import lag.coalescent as coalescent
 import lag.renewal as renewal
 
 
-def grid_helper(coal_times, samp_times, rev_inf_prof, gen_int):
+def grid_helper(
+    coalescent_times,
+    sampling_times,
+    reversed_infectiousness_profile,
+    generation_interval,
+):
     """
     Figures out where the tree lives in renewal grid time and the farthest back the grid must go.
     """
-    tmrs = samp_times.min()
-    tmrca = coal_times.max()
+    tmrs = sampling_times.min()
+    tmrca = coalescent_times.max()
 
     # The discrete-time intervals into which these events fall
     tree_t_min = np.floor(tmrs).astype(int)
     tree_t_max = np.floor(tmrca).astype(int)
-    # You need at least gen_int days of incidence before t_MRCA to get prevalence at that time
-    # You need a burn-in of at least rev_inf_prof to have the entire renewal history contributing to daily incidence at some time
-    tmp = 1 + gen_int + len(rev_inf_prof)
+    # You need at least generation_interval days of incidence before t_MRCA to get prevalence at that time
+    # You need a burn-in of at least reversed_infectiousness_profile to have the entire renewal history contributing to daily incidence at some time
+    tmp = 1 + generation_interval + len(reversed_infectiousness_profile)
     burnin = 50 if 50 > tmp else tmp
 
     return tree_t_min, tree_t_max, burnin
 
 
-def preprocess(coal_times, samp_times, rev_inf_prof, gen_int):
+def preprocess(
+    coalescent_times,
+    sampling_times,
+    reversed_infectiousness_profile,
+    generation_interval,
+):
     """
     Convenience function to obtain formatted data for use in `renewal_coalescent_model`
     """
     tree_t_min, tree_t_max, init_growth_steps = grid_helper(
-        coal_times, samp_times, rev_inf_prof, gen_int
+        coalescent_times,
+        sampling_times,
+        reversed_infectiousness_profile,
+        generation_interval,
     )
     n_weeks = np.ceil((tree_t_max + init_growth_steps) / 7).astype(int)
     renewal_t_max = tree_t_max + init_growth_steps
 
     rate_grid = np.arange(tree_t_min + 1, tree_t_max + 1)
     intervals = coalescent.CoalescentIntervals(
-        coal_times, samp_times, rate_grid
+        coalescent_times, sampling_times, rate_grid
     )
     intervals.remove_deterministic_intervals()
 
@@ -46,8 +59,8 @@ def renewal_coalescent_model(
     init_growth_steps,
     n_weeks,
     renewal_t_max,
-    rev_inf_prof,
-    gen_int,
+    reversed_infectiousness_profile,
+    generation_interval,
 ):
     """
     A model inferring Rt from coalescent times using a discrete-time renewal model as the link.
@@ -58,9 +71,15 @@ def renewal_coalescent_model(
     i0 = renewal.i0()
     init_growth_rate = renewal.exp_growth_rate()
     daily_incidence = renewal.daily_incidence(
-        daily_rt, rev_inf_prof, i0, init_growth_rate, init_growth_steps
+        daily_rt,
+        reversed_infectiousness_profile,
+        i0,
+        init_growth_rate,
+        init_growth_steps,
     )
-    daily_prevalence = renewal.daily_prevalence(daily_incidence, gen_int)
+    daily_prevalence = renewal.daily_prevalence(
+        daily_incidence, generation_interval
+    )
 
     # Coalescent likelihood
     coalescent.episodic_epi_coalescent_factor(
