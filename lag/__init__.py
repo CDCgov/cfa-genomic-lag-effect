@@ -3,8 +3,10 @@ import numpy as np
 import lag.coalescent as coalescent
 import lag.renewal as renewal
 
+__all__ = ["preprocess", "renewal_coalescent_model", "coalescent", "renewal"]
 
-def grid_helper(
+
+def _grid_helper(
     coalescent_times,
     sampling_times,
     reversed_infectiousness_profile,
@@ -36,7 +38,7 @@ def preprocess(
     """
     Convenience function to obtain formatted data for use in `renewal_coalescent_model`
     """
-    tree_t_min, tree_t_max, init_growth_steps = grid_helper(
+    tree_t_min, tree_t_max, init_growth_steps = _grid_helper(
         coalescent_times,
         sampling_times,
         reversed_infectiousness_profile,
