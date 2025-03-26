@@ -22,7 +22,7 @@ class RtModel(ABC):
         rng_key,
         mcmc_config: dict[str, Any],
         nuts_config: dict[str, Any] = {},
-    ):
+    ) -> numpyro.infer.MCMC:
         kernel = numpyro.infer.NUTS(cls.model, **nuts_config)
         mcmc = numpyro.infer.MCMC(kernel, **mcmc_config)
         mcmc.run(
@@ -30,6 +30,7 @@ class RtModel(ABC):
             data=data,
             hyperparameters=hyperparameters,
         )
+        return mcmc
 
     @classmethod
     @abstractmethod
@@ -39,7 +40,9 @@ class RtModel(ABC):
 
 class RenewalCoalescentModel(RtModel):
     def __init__(self):
-        raise NotImplementedError()
+        raise NotImplementedError(
+            "RenewalCoalescentModel is not designed to be instantiated."
+        )
 
     @classmethod
     def model(

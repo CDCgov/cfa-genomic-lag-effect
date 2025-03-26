@@ -53,7 +53,7 @@ def test_model_runs():
 
     rng_key = jax.random.key(0)
 
-    RenewalCoalescentModel.fit(
+    _ = RenewalCoalescentModel.fit(
         data=intervals,
         hyperparameters=par
         | {
