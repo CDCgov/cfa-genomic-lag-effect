@@ -10,6 +10,7 @@ python = "^3.10"
 numpy = "^2.2.3"
 numpyro = "^0.17.0"
 jax = "^0.5.2"
+typing-extensions = "^4.12.2"
 
 
 [tool.poetry.group.dev.dependencies]
