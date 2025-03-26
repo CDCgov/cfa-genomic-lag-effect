@@ -42,7 +42,6 @@ class RenewalCoalescentModel(RtModel):
         raise NotImplementedError()
 
     @classmethod
-    @abstractmethod
     def model(
         cls,
         data: CoalescentData,
