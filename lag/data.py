@@ -70,7 +70,7 @@ class CoalescentData(GenomicData):
         ).all()
         # Change in active lineage counts is +1, +0, or -1
         assert set(self.da).issubset(set([-1, 0, 1]))
-        # Nonnegative integer choose(n_active, 2)
+        # Nonnegative indices for rate function vector
         assert (self.rate_indexer >= 0).all()
         assert (
             (self.rate_indexer.astype(int) - self.rate_indexer) == 0.0
@@ -169,7 +169,7 @@ class CoalescentData(GenomicData):
         return intervals
 
     @classmethod
-    def likelihood_components(cls, data: Self) -> Self:
+    def likelihood_relevant_intervals(cls, data: Self) -> Self:
         """
         Get only the intervals which do not occur with probability 1.
 

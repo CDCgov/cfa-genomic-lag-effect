@@ -30,7 +30,9 @@ def test_offset_same_loglik():
         RenewalCoalescentModel.log_likelihood(coal_data, foi, prevalence)
     )
 
-    nondeterministic = data.CoalescentData.likelihood_components(coal_data)
+    nondeterministic = data.CoalescentData.likelihood_relevant_intervals(
+        coal_data
+    )
     assert nondeterministic.dt.shape[0] < coal_data.dt.shape[0]
     lnl_offset = float(
         RenewalCoalescentModel.log_likelihood(

@@ -174,7 +174,7 @@ class RenewalCoalescentModel(RtModel):
         rate_grid = np.arange(tree_t_min + 1, tree_t_max + 1)
         coal_data = CoalescentData(coalescent_times, sampling_times, rate_grid)
 
-        return CoalescentData.likelihood_components(coal_data), {
+        return CoalescentData.likelihood_relevant_intervals(coal_data), {
             "init_growth_steps": init_growth_steps,
             "n_weeks": n_weeks,
             "renewal_t_max": renewal_t_max,
