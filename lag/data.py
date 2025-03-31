@@ -19,7 +19,7 @@ class GenomicData(ABC):
         raise NotImplementedError()
 
 
-class LaggableGenomicData(ABC):
+class LaggableGenomicData(GenomicData):
     """
     GenomicData that can tell you what was known as of a particular time.
     """
@@ -112,7 +112,7 @@ class CoalescentData(LaggableGenomicData):
                 self.coalescent_times, self.sampling_times
             )
         assert self.intervals.shape[1] == 4
-        self.assert_col_specs()
+        self.assert_col_specs(likelihood_only)
 
     def as_of(self, as_of: float, lags: NDArray, **kwargs) -> Self:
         assert as_of >= 0.0
@@ -143,28 +143,37 @@ class CoalescentData(LaggableGenomicData):
             ],
         )
 
-    def assert_col_specs(self):
-        # Nonnegative durations
-        assert (self.dt >= 0).all()
-        # Nonnegative integer choose(n_active, 2)
-        assert (self.num_active_choose_2 >= 0).all()
+    def assert_col_specs(self, likelihood_only: bool):
+        assert (self.dt >= 0).all(), "Durations must be nonnegative"
+        assert (
+            self.num_active_choose_2 >= 0
+        ).all(), "choose(# active, 2) must be nonnegative"
         assert (
             (self.num_active_choose_2.astype(int) - self.num_active_choose_2)
             == 0.0
-        ).all()
-        # Change in active lineage counts is +1, +0, or -1
-        assert set(self.da).issubset(set([-1, 0, 1]))
-        # Nonnegative nondecreasing indices for rate function vector
-        assert (self.rate_indexer >= 0).all()
+        ).all(), "choose(# active, 2) must be an integer"
+        assert set(self.da).issubset(
+            set([-1, 0, 1])
+        ), r"Change in # active at intervals must be in {-1, 0, 1}"
+        assert (
+            self.rate_indexer >= 0
+        ).all(), "Indices for rate function should be nonnegative"
         assert (
             (self.rate_indexer.astype(int) - self.rate_indexer) == 0.0
-        ).all()
-        assert is_nondecreasing(self.rate_indexer)
-        # Number of rate shift times matches number of rate function indices
-        assert (
-            np.unique(self.rate_shift_times).shape[0]
-            == np.unique(self.rate_indexer).shape[0] - 1
-        )
+        ).all(), "Indices for rate function should be integers"
+        assert is_nondecreasing(
+            self.rate_indexer
+        ), "Indices for rate function should be nondecreasing"
+        if not likelihood_only:
+            # If the last rate shift is more recent than the root of the tree, there is one less rate shift than there are rate function indices
+            # If the last rate shift is older than the root, there is an interval apparently using the nth rate
+            ends_in_rate_shift_adj = self.ends_in_rate_shift_indicator[-1]
+            assert (
+                np.unique(self.rate_shift_times).shape[0]
+                == np.unique(self.rate_indexer).shape[0]
+                - 1
+                + ends_in_rate_shift_adj
+            ), "Number of rate shifts and rate indices must match"
 
     @staticmethod
     def assert_valid_coalescent_times(
@@ -193,7 +202,7 @@ class CoalescentData(LaggableGenomicData):
         coalescent_times: NDArray,
         sampling_times: NDArray,
         rate_shift_times: NDArray,
-        rate_indices: Optional[NDArray],
+        rate_indices: Optional[NDArray] = None,
     ):
         """
         Matrix with information required to compute the coalescent likelihood of the provided
@@ -393,7 +402,9 @@ class CoalescentData(LaggableGenomicData):
         """
         The times at which the piecewise constant rate function changes.
         """
-        return np.cumsum(self.dt)[self.ends_in_rate_shift_indicator]
+        return np.cumsum(self.dt)[
+            np.where(self.ends_in_rate_shift_indicator == 1)
+        ].astype(int)
 
     @property
     def sampling_times(self) -> NDArray:
