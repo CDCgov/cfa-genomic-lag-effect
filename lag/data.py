@@ -87,6 +87,9 @@ class CoalescentData(LaggableGenomicData):
             assert coalescent_times is not None
             assert sampling_times is not None
             assert rate_shift_times is not None
+            self.assert_valid_coalescent_times(
+                coalescent_times, sampling_times
+            )
             self.intervals = CoalescentData.construct_coalescent_intervals(
                 coalescent_times,
                 sampling_times,
@@ -168,12 +171,15 @@ class CoalescentData(LaggableGenomicData):
             # If the last rate shift is more recent than the root of the tree, there is one less rate shift than there are rate function indices
             # If the last rate shift is older than the root, there is an interval apparently using the nth rate
             ends_in_rate_shift_adj = self.ends_in_rate_shift_indicator[-1]
-            assert (
-                np.unique(self.rate_shift_times).shape[0]
-                == np.unique(self.rate_indexer).shape[0]
+            n_rate_shifts = np.unique(self.rate_shift_times).shape[0]
+            n_rate_shifts_expected = (
+                np.unique(self.rate_indexer).shape[0]
                 - 1
                 + ends_in_rate_shift_adj
-            ), "Number of rate shifts and rate indices must match"
+            )
+            assert (
+                n_rate_shifts == n_rate_shifts_expected
+            ), f"Number of rate shifts and rate indices must match; found {n_rate_shifts}, expected {n_rate_shifts_expected}."
 
     @staticmethod
     def assert_valid_coalescent_times(
@@ -404,7 +410,7 @@ class CoalescentData(LaggableGenomicData):
         """
         return np.cumsum(self.dt)[
             np.where(self.ends_in_rate_shift_indicator == 1)
-        ].astype(int)
+        ]
 
     @property
     def sampling_times(self) -> NDArray:
