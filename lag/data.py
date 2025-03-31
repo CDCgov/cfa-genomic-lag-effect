@@ -134,14 +134,13 @@ class CoalescentData(LaggableGenomicData):
         coal_times = [
             time_map[node.label] for node in tree.preorder_internal_node_iter()
         ]
-        all_rate_indices = self.rate_indexer
         return type(self)(
             coalescent_times=np.array(coal_times),
             sampling_times=np.array(samp_times),
             rate_shift_times=self.rate_shift_times,
-            rate_indices=np.arange(
-                all_rate_indices.min(), all_rate_indices.max() + 1
-            ),
+            rate_indices=self.rate_indexer[
+                np.where(self.ends_in_rate_shift_indicator == 1)
+            ],
         )
 
     def assert_col_specs(self):
@@ -161,6 +160,11 @@ class CoalescentData(LaggableGenomicData):
             (self.rate_indexer.astype(int) - self.rate_indexer) == 0.0
         ).all()
         assert is_nondecreasing(self.rate_indexer)
+        # Number of rate shift times matches number of rate function indices
+        assert (
+            np.unique(self.rate_shift_times).shape[0]
+            == np.unique(self.rate_indexer).shape[0] - 1
+        )
 
     @staticmethod
     def assert_valid_coalescent_times(
@@ -357,6 +361,13 @@ class CoalescentData(LaggableGenomicData):
         return (self.da == -1).astype(int)
 
     @property
+    def ends_in_rate_shift_indicator(self) -> NDArray:
+        """
+        Indicator for whether each interval ends in a rate shift.
+        """
+        return (self.da == 0).astype(int)
+
+    @property
     def ends_in_sampling_indicator(self) -> NDArray:
         """
         Indicator for whether each interval ends in a sampling event.
@@ -382,7 +393,7 @@ class CoalescentData(LaggableGenomicData):
         """
         The times at which the piecewise constant rate function changes.
         """
-        return np.cumsum(self.dt)[np.where(self.da == 0)]
+        return np.cumsum(self.dt)[self.ends_in_rate_shift_indicator]
 
     @property
     def sampling_times(self) -> NDArray:
