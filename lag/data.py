@@ -77,7 +77,8 @@ class CoalescentData(LaggableGenomicData):
             The times at which the piecewise constant coalescent rate function changes.
             If provided, must also provide `coalescent_times` and `sampling_times`.
         rate_indices: Optional[NDArray]
-            If providing rate_shift_times,
+            If providing rate_shift_times when the rate indices in the intervals are not
+            0, 1, 2, ..., use this to specify what the indices are.
         intervals: Optional[NDArray]
             Allows construction of a new
         likelihood_only: bool
