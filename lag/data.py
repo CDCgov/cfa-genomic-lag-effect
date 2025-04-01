@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from itertools import groupby
 from typing import Optional
 
 import dendropy
@@ -177,7 +176,7 @@ class CoalescentData(LaggableGenomicData):
             n_rate_shifts = self.rate_shift_times.shape[0]
             # There should be one fewer rate shift than rate class unless the last event is a rate shift
             n_rate_shifts_expected = (
-                len([val for val, _ in groupby(self.rate_indexer)])
+                len(rle_vals(self.rate_indexer))
                 - 1
                 + self.ends_in_rate_shift_indicator[-1]
             )
