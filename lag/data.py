@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from itertools import groupby
 from typing import Optional
 
 import dendropy
@@ -6,7 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import Self
 
-from lag.utils import choose2, is_nondecreasing
+from lag.utils import choose2, rle_vals
 
 
 class GenomicData(ABC):
@@ -141,9 +142,7 @@ class CoalescentData(LaggableGenomicData):
             coalescent_times=np.array(coal_times),
             sampling_times=np.array(samp_times),
             rate_shift_times=self.rate_shift_times,
-            rate_indices=self.rate_indexer[
-                np.where(self.ends_in_rate_shift_indicator == 1)
-            ],
+            rate_indices=np.array(rle_vals(self.rate_indexer)),
         )
 
     def assert_col_specs(self, likelihood_only: bool):
@@ -164,18 +163,13 @@ class CoalescentData(LaggableGenomicData):
         assert (
             (self.rate_indexer.astype(int) - self.rate_indexer) == 0.0
         ).all(), "Indices for rate function should be integers"
-        assert is_nondecreasing(
-            self.rate_indexer
-        ), "Indices for rate function should be nondecreasing"
         if not likelihood_only:
-            # If the last rate shift is more recent than the root of the tree, there is one less rate shift than there are rate function indices
-            # If the last rate shift is older than the root, there is an interval apparently using the nth rate
-            ends_in_rate_shift_adj = self.ends_in_rate_shift_indicator[-1]
-            n_rate_shifts = np.unique(self.rate_shift_times).shape[0]
+            n_rate_shifts = self.rate_shift_times.shape[0]
+            # There should be one fewer rate shift than rate class unless the last event is a rate shift
             n_rate_shifts_expected = (
-                np.unique(self.rate_indexer).shape[0]
+                len([val for val, _ in groupby(self.rate_indexer)])
                 - 1
-                + ends_in_rate_shift_adj
+                + self.ends_in_rate_shift_indicator[-1]
             )
             assert (
                 n_rate_shifts == n_rate_shifts_expected
@@ -263,7 +257,7 @@ class CoalescentData(LaggableGenomicData):
             :-1
         ]
         if rate_indices is not None:
-            rate_index = rate_indices[rate_index]
+            rate_index = rate_indices[rate_index.astype(int)]
 
         intervals = np.column_stack(
             (
@@ -310,7 +304,7 @@ class CoalescentData(LaggableGenomicData):
         dt = self.dt
         is_coalescent = self.ends_in_coalescent_indicator
         is_sampling = self.ends_in_sampling_indicator
-        for i in range(dt.shape[0] - 1):
+        for i in range(dt.shape[0]):
             # print(f"+++ Iterating, active = {active}")
             time += dt[i]
             if is_coalescent[i]:
