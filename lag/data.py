@@ -125,19 +125,29 @@ class CoalescentData(LaggableGenomicData):
         ), "Provided lags don't match sampling times"
         rng = kwargs.get("rng", np.random.default_rng())
         tree, time_map = self.random_topology(rng)
-        remove_samps = [
+        print(tree.as_ascii_plot(plot_metric="length"))
+        keep_samps = [
             f"s_{i}"
             for i in range(lags.shape[0])
-            if time_map[f"s_{i}"] + lags[i] >= as_of
+            if time_map[f"s_{i}"] - lags[i] >= as_of
         ]
-        tree.filter_leaf_nodes(
-            lambda x: x.label in remove_samps, suppress_unifurcations=True
-        )
+        if len(keep_samps) == 0:
+            raise ValueError(
+                f"There is no data at time {as_of} with lags {lags}"
+            )
+        else:
+            tree.filter_leaf_nodes(
+                lambda x: x.label in keep_samps, suppress_unifurcations=True
+            )
 
-        samp_times = [time_map[node.label] for node in tree.leaf_node_iter()]
-        coal_times = [
-            time_map[node.label] for node in tree.preorder_internal_node_iter()
-        ]
+            samp_times = [
+                time_map[node.label] for node in tree.leaf_node_iter()
+            ]
+            coal_times = [
+                time_map[node.label]
+                for node in tree.preorder_internal_node_iter()
+            ]
+            print(tree.as_ascii_plot(plot_metric="length"))
         return type(self)(
             coalescent_times=np.array(coal_times),
             sampling_times=np.array(samp_times),

@@ -6,6 +6,18 @@ import lag.data as data
 
 @pytest.fixture
 def four_tip():
+    r"""
+    There is only one tree possible for these times:
+    /----- s_3
+    +
+    |                          /------ s_2
+    \--------------------------+
+                               |                          /------ s_1
+                               \--------------------------+
+                                                          \-------------------- s_0
+    time
+    5.5    5                   3.5     3                  1.5     1             0
+    """
     samps = np.array([0, 1, 3, 5])
     coals = np.array([1.5, 3.5, 5.5])
     rst = np.array([0.5, 2.25, 2.5, 2.75])
@@ -60,4 +72,42 @@ def test_no_lag(four_tip):
     assert (lagged.coalescent_times == four_tip.coalescent_times).all()
     assert (lagged.sampling_times == four_tip.sampling_times).all()
 
-    # lag_0 = intervals.as_of(as_of=1.1, lags=np.array([0.0] * 4), rng=np.random.default_rng(0))
+
+def test_too_much_lag(four_tip):
+    with pytest.raises(Exception) as e_info:
+        _ = four_tip.as_of(
+            as_of=10.0, lags=np.array([0.0] * 4), rng=np.random.default_rng(0)
+        )
+    assert isinstance(e_info.value, ValueError)
+
+
+def test_lag(four_tip):
+    lag_0_as_of_0_5 = four_tip.as_of(
+        as_of=0.5, lags=np.array([0.0] * 4), rng=np.random.default_rng(0)
+    )
+    assert (lag_0_as_of_0_5.coalescent_times == np.array([3.5, 5.5])).all()
+    assert (lag_0_as_of_0_5.sampling_times == np.array([1, 3, 5])).all()
+
+    lag_0_as_of_1_1 = four_tip.as_of(
+        as_of=1.1, lags=np.array([0.0] * 4), rng=np.random.default_rng(0)
+    )
+    assert (lag_0_as_of_1_1.coalescent_times == np.array([5.5])).all()
+    assert (lag_0_as_of_1_1.sampling_times == np.array([3, 5])).all()
+
+    as_of_0_lag_1_1 = four_tip.as_of(
+        as_of=0.0, lags=np.array([1.1] * 4), rng=np.random.default_rng(0)
+    )
+    assert (
+        lag_0_as_of_1_1.coalescent_times == as_of_0_lag_1_1.coalescent_times
+    ).all()
+    assert (
+        lag_0_as_of_1_1.sampling_times == as_of_0_lag_1_1.sampling_times
+    ).all()
+
+    varying_lag = four_tip.as_of(
+        as_of=0.0,
+        lags=np.array([0.0, 1.5, 0.25, 0.5]),
+        rng=np.random.default_rng(0),
+    )
+    assert (varying_lag.coalescent_times == np.array([3.5, 5.5])).all()
+    assert (varying_lag.sampling_times == np.array([0, 3, 5])).all()
