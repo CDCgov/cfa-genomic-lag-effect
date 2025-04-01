@@ -124,7 +124,6 @@ class CoalescentData(LaggableGenomicData):
         ), "Provided lags don't match sampling times"
         rng = kwargs.get("rng", np.random.default_rng())
         tree, time_map = self.random_topology(rng)
-        print(tree.as_ascii_plot(plot_metric="length"))
         keep_samps = [
             f"s_{i}"
             for i in range(lags.shape[0])
@@ -146,7 +145,6 @@ class CoalescentData(LaggableGenomicData):
                 time_map[node.label]
                 for node in tree.preorder_internal_node_iter()
             ]
-            print(tree.as_ascii_plot(plot_metric="length"))
         return type(self)(
             coalescent_times=np.array(coal_times),
             sampling_times=np.array(samp_times),
@@ -314,23 +312,18 @@ class CoalescentData(LaggableGenomicData):
         is_coalescent = self.ends_in_coalescent_indicator
         is_sampling = self.ends_in_sampling_indicator
         for i in range(dt.shape[0]):
-            # print(f"+++ Iterating, active = {active}")
             time += dt[i]
             if is_coalescent[i]:
                 parent = dendropy.Node(label=f"c_{cidx}")
                 times[f"c_{cidx}"] = time
                 chosen = rng.choice(len(active), 2, replace=False).astype(int)
-                # print(f"++++++ chose to merge {chosen}")
                 for i in sorted(chosen, reverse=True):
-                    # print(f"+++++++++ working with {i} ({active[i]})")
                     child = active.pop(i)
-                    # print(f"+++++++++ active = {active}")
                     parent.add_child(child)
                     child.parent_node = parent
                     # For visualization purposes
                     child.edge_length = time - times[child.label]
                 active.append(parent)
-                # print(f"parent {parent} has children {parent.child_nodes}")
                 cidx += 1
             elif is_sampling[i]:
                 active.append(dendropy.Node(label=f"s_{sidx}"))
