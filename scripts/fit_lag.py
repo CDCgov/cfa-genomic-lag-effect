@@ -47,12 +47,25 @@ t = np.arange(1723)
 plt.plot(t, approx.cdf(t))
 plt.show()
 
-# Samples
-approx_samples = approx.draw(10000)
-
-approx_quants = np.quantile(approx_samples, np.arange(1, 100) / 100)
+# QQ plot of approximation vs empirical distribution
+approx_quants = np.vectorize(approx.quantile_function)(np.arange(1, 100) / 100)
 observed_quants = np.quantile(df["lag"].to_numpy(), np.arange(1, 100) / 100)
 
 plt.plot(observed_quants, approx_quants)
-plt.plot(observed_quants, observed_quants)
+plt.plot(
+    observed_quants, observed_quants, ls="--"
+)  # a 1:1 line for comparison
+plt.show()
+
+# Samples look like approximation they should be draws from
+approx_samples = approx.draw(100000)
+
+plt.hist(approx_samples, bins=500, density=True)
+plt.plot(t, approx.pdf(t))
+plt.show()
+
+approx_sample_quants = np.quantile(approx_samples, np.arange(1, 100) / 100)
+
+plt.plot(approx_quants, approx_sample_quants)
+plt.plot(approx_quants, approx_quants, ls="--")  # a 1:1 line for comparison
 plt.show()

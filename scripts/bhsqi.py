@@ -25,19 +25,19 @@ class BHSQI:
         rng: np.random.Generator = np.random.default_rng(),
     ):
         self.rng = rng
+
         self.knots, self.coef = BHSQI.bshqi(samples, n_steps, low, high)
+        self.xmin = self.knots[2]
+        self.xmax = self.knots[-3]
+
         self._pdf = BSpline(self.knots, self.coef, 2, extrapolate=False)
-        self._cdf = self._pdf.antiderivative(1)
+        assert self._pdf(low) != np.nan
+        assert self._pdf(high) != np.nan
+
+        self._cdf = np.vectorize(lambda x: self._pdf.integrate(self.xmin, x))
         self.cdf_points = self.knots[1:-1]
-        self.xmin = self.cdf_points[0]
-        self.xmax = self.cdf_points[-1]
-        self.cdf_precompute = np.concat(
-            (
-                np.array([0.0]),
-                self._cdf(self.cdf_points[1:-1]),
-                np.array([1.0]),
-            )
-        )
+        self.pmax = self._cdf(self.xmax)
+        self.cdf_precompute = self.cdf(self.cdf_points)
 
     @staticmethod
     def bshqi(
@@ -47,7 +47,9 @@ class BHSQI:
         high: Optional[float] = None,
     ):
         """
-        Fit the interpolation, see: https://www.sciencedirect.com/science/article/pii/S0377042724003807
+        Fits the interpolation
+
+        For more, see https://www.sciencedirect.com/science/article/pii/S0377042724003807
         """
         n = samples.shape[0]
         a = low if low is not None else samples.min()
@@ -55,12 +57,16 @@ class BHSQI:
 
         h = (b - a) / n_steps
 
+        # Grid, per Tamborrino et al.
         # Defined between equations 2 and 3
         pi = np.linspace(a, b, n_steps + 1)
 
         assert np.isclose(pi[1] - pi[0], h, atol=0.0), print(
             f"Grid size is off by {h - (pi[1] - pi[0])}"
         )
+
+        # Pad out grid one step each direction
+        pi = np.concat((np.array([pi[0] - h]), pi, np.array([pi[-1] + h])))
 
         # Defined in Lemma 2.2, give or take offsetting differences between paper and SciPy
         c_grid = pi[:-1] + h / 2
@@ -91,7 +97,7 @@ class BHSQI:
         )
 
     def draw(self, size: int) -> NDArray:
-        u = self.rng.uniform(low=0.0, high=1.0, size=size)
+        u = self.rng.uniform(low=0.0, high=self.pmax, size=size)
         return np.array([self.quantile_function(uu) for uu in u])
 
     def pdf(self, x) -> NDArray:
@@ -103,8 +109,10 @@ class BHSQI:
         interval = np.argwhere(self.cdf_precompute <= p).max()
         if p == self.cdf_precompute[interval]:
             return float(self.cdf_points[interval])
+        remainder = p - self.cdf_precompute[interval]
         return brentq(
-            lambda x: self.cdf(x) - p,
+            lambda x: self._pdf.integrate(self.cdf_points[interval], x)
+            - remainder,
             self.cdf_points[interval],
             self.cdf_points[interval + 1],
         )  # type: ignore
