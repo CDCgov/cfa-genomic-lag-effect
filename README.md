@@ -2,6 +2,17 @@
 
 ⚠️ This is a work in progress ⚠️
 
+This repo contains code to study via simulations the effect of lag (from sample collection to sequence availability) on the utility of genomic data for estimating epidemiological parameters.
+It consists of a small python package, `lag`, and some associated utilities in `/scripts`.
+
+## Getting started
+
+This is a [poetry](https://python-poetry.org/) project; `lag` can be installed with `poetry install` and interacted with via `poetry run python`.
+
+To use the (not yet built) pipeline in `/scripts`, you will need to:
+- Download and uncompress Nextstrain's open [metadata.tsv](https://docs.nextstrain.org/projects/ncov/en/latest/reference/remote_inputs.html).
+- Create `scripts/config.json` (it should look like `scripts/example_config.json`).
+
 ## Project Admin
 
 Andy Magee, PhD, (@afmagee42)
