@@ -74,8 +74,14 @@ class RenewalCoalescentModel(RtModel):
         # Coalescent likelihood
         factor(
             "coalescent_likelihood",
-            RenewalCoalescentModel.log_likelihood(
-                data, daily_incidence, daily_prevalence
+            RenewalCoalescentModel.piecewise_constant_log_likelihood(
+                data,
+                jnp.flip(daily_incidence),
+                jnp.flip(
+                    RenewalCoalescentModel.approx_squared_prevalence(
+                        daily_prevalence
+                    )
+                ),
             ),
         )
 
@@ -84,8 +90,22 @@ class RenewalCoalescentModel(RtModel):
     ########################
 
     @staticmethod
-    def coalescent_rate(prevalence, n_active, force_of_infection):
-        return choose2(n_active) * 2.0 * force_of_infection / prevalence
+    def approx_squared_prevalence(prevalence):
+        return (
+            jnp.pow(prevalence[:-1] + jnp.diff(prevalence), 3.0)
+            - jnp.pow(prevalence[:-1], 3.0)
+        ) / (3.0 * jnp.diff(prevalence))
+
+    @staticmethod
+    def approx_coalescent_rate(
+        approx_squared_prevalence, n_active, force_of_infection
+    ):
+        return (
+            choose2(n_active)
+            * 2.0
+            * force_of_infection
+            / approx_squared_prevalence
+        )
 
     @staticmethod
     def grid_helper(
@@ -111,39 +131,21 @@ class RenewalCoalescentModel(RtModel):
         return tree_t_min, tree_t_max, burnin
 
     @staticmethod
-    def log_likelihood(
-        intervals: CoalescentData, force_of_infection, prevalence
+    def piecewise_constant_log_likelihood(
+        intervals: CoalescentData,
+        force_of_infection,
+        approx_squared_prevalence,
     ):
         """
         Computes the likelihood of construct_epi_coalescent_grid(coalescent_times, sampling_times, rate_shift_times)
-        given the piecewise constant force of infection and piecewise constant prevalence.
+        given the piecewise constant force of infection and approximated piecewise constant squared prevalence.
         """
 
         rate = (
             intervals.num_active_choose_2
             * 2.0
             * force_of_infection[intervals.rate_indexer]
-            / prevalence[intervals.rate_indexer]
-        )
-        lnl = rate * intervals.dt - jnp.where(
-            intervals.ends_in_coalescent_indicator, jnp.log(rate), 0.0
-        )
-        return lnl.sum()
-
-    @staticmethod
-    def log_likelihood_from_intervals(
-        intervals: CoalescentData, force_of_infection, prevalence
-    ):
-        """
-        Computes the likelihood of construct_epi_coalescent_grid(coalescent_times, sampling_times, rate_shift_times)
-        given the piecewise constant force of infection and piecewise constant prevalence.
-        """
-
-        rate = (
-            intervals.num_active_choose_2
-            * 2.0
-            * force_of_infection[intervals.rate_indexer]
-            / prevalence[intervals.rate_indexer]
+            / approx_squared_prevalence[intervals.rate_indexer]
         )
         lnl = rate * intervals.dt - jnp.where(
             intervals.ends_in_coalescent_indicator, jnp.log(rate), 0.0
@@ -218,7 +220,7 @@ class RenewalCoalescentModel(RtModel):
         sample_idx = 0
         n_active = 0
         coalescent_times = []
-        rate_inv = 1.0 / RenewalCoalescentModel.coalescent_rate(
+        rate_inv = 1.0 / RenewalCoalescentModel.approx_coalescent_rate(
             prevalence[rate_idx], n_active, force_of_infection[rate_idx]
         )
         while len(coalescent_times) < n_coal:
@@ -235,7 +237,7 @@ class RenewalCoalescentModel(RtModel):
                 time += wt
                 coalescent_times.append(time)
                 n_active -= 1
-            rate_inv = 1.0 / RenewalCoalescentModel.coalescent_rate(
+            rate_inv = 1.0 / RenewalCoalescentModel.approx_coalescent_rate(
                 prevalence[rate_idx],
                 n_active,
                 force_of_infection[rate_idx],

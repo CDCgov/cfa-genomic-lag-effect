@@ -117,6 +117,11 @@ The command `poetry run snakemake diagnostics` will produce plots showing:
 
 Note that if snakemake has not yet been called, this will run pipeline steps prior to `analyze.py`.
 
+## Documentation
+
+Documentation is best viewed with `mkdocs` via `poetry run mkdocs serve`.
+This includes a description of the mathematical model used to link $R_t$ with the genomic data and an API reference for `lag`.
+
 ## Project Admin
 
 Andy Magee, PhD, (@afmagee42)
