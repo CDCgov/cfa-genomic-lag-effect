@@ -16,8 +16,20 @@ arviz = "^0.21.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
+typing-extensions = "^4.13.1"
+mkdocs = "^1.6.1"
+mkdocstrings-python = "^1.16.10"
+mkdocstrings = "^0.29.1"
+mkdocs-material = "^9.6.11"
+mdx-truly-sane-lists = "^1.3"
+pymdocx = "^0.4.1"
+pymdown-extensions = "^10.14.3"
+mkdocs-bibtex = "^4.2.5"
+
+
+[tool.poetry.group.pipeline.dependencies]
 scipy = "^1.15.2"
-polars = "^1.25.2"
+polars = "^1.26.0"
 matplotlib = "^3.10.1"
 snakemake = "^9.1.9"
 
