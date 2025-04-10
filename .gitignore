@@ -1,4 +1,6 @@
-scripts/config.json
+pipeline/config.json
+pipeline/out
+.snakemake
 
 #####
 # Exclude many data and output file types by default

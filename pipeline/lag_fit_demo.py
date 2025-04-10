@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
 
-import scripts.bhsqi
+import pipeline.bhsqi
 
-with open("scripts/config.json", "r") as file:
+with open("pipeline/config.json", "r") as file:
     config = json.load(file)
 
-ns_path = config["nextstrain_path"]
+ns_path = config["empirical_lag"]["nextstrain_path"]
 
 df = (
     pl.scan_csv(ns_path, separator="\t")
@@ -30,7 +30,7 @@ df = (
 
 df["lag"].describe()
 
-approx = scripts.bhsqi.BHSQI(
+approx = pipeline.bhsqi.BHSQI.from_samples(
     samples=df["lag"].to_numpy(),
     n_steps=500,
     low=0.0,

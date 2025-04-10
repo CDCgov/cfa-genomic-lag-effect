@@ -1,6 +1,9 @@
+import argparse
+import json
 from typing import Optional
 
 import numpy as np
+import polars as pl
 from numpy.typing import NDArray
 from scipy.interpolate import BSpline
 from scipy.optimize import brentq
@@ -16,28 +19,31 @@ class BHSQI:
     .draw(), which samples from the approximated distribution
     """
 
-    def __init__(
-        self,
-        samples: NDArray,
-        n_steps: int,
-        low: Optional[float] = None,
-        high: Optional[float] = None,
-        rng: np.random.Generator = np.random.default_rng(),
-    ):
-        self.rng = rng
-
-        self.knots, self.coef = BHSQI.bshqi(samples, n_steps, low, high)
+    def __init__(self, knots: NDArray, coef: NDArray):
+        self.knots = knots
         self.xmin = self.knots[2]
         self.xmax = self.knots[-3]
 
+        self.coef = coef
+
         self._pdf = BSpline(self.knots, self.coef, 2, extrapolate=False)
-        assert self._pdf(low) != np.nan
-        assert self._pdf(high) != np.nan
+        assert (self._pdf(knots) != np.nan).all()
 
         self._cdf = np.vectorize(lambda x: self._pdf.integrate(self.xmin, x))
         self.cdf_points = self.knots[1:-1]
         self.pmax = self._cdf(self.xmax)
         self.cdf_precompute = self.cdf(self.cdf_points)
+
+    @classmethod
+    def from_samples(
+        cls,
+        samples: NDArray,
+        n_steps: int,
+        low: Optional[float] = None,
+        high: Optional[float] = None,
+    ):
+        knots, coef = BHSQI.bshqi(samples, n_steps, low, high)
+        return cls(knots, coef)
 
     @staticmethod
     def bshqi(
@@ -96,8 +102,10 @@ class BHSQI:
             x <= self.xmin, 0.0, np.where(x >= self.xmax, 1.0, self._cdf(x))
         )
 
-    def draw(self, size: int) -> NDArray:
-        u = self.rng.uniform(low=0.0, high=self.pmax, size=size)
+    def draw(
+        self, size: int, rng: np.random.Generator = np.random.default_rng()
+    ) -> NDArray:
+        u = rng.uniform(low=0.0, high=self.pmax, size=size)
         return np.array([self.quantile_function(uu) for uu in u])
 
     def pdf(self, x) -> NDArray:
@@ -116,3 +124,78 @@ class BHSQI:
             self.cdf_points[interval],
             self.cdf_points[interval + 1],
         )  # type: ignore
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Fit BHSQI approximations to scaled sample lags and save parameters to JSON."
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to JSON configuration file",
+    )
+
+    with open(parser.parse_args().config, "r") as file:
+        config = json.load(file)
+
+    ns_path = config["empirical_lag"]["nextstrain_path"]
+
+    date_l = pl.date(
+        config["empirical_lag"]["date_lower"]["y"],
+        config["empirical_lag"]["date_lower"]["m"],
+        config["empirical_lag"]["date_lower"]["d"],
+    )
+    date_u = pl.date(
+        config["empirical_lag"]["date_upper"]["y"],
+        config["empirical_lag"]["date_upper"]["m"],
+        config["empirical_lag"]["date_upper"]["d"],
+    )
+
+    df = (
+        pl.scan_csv(ns_path, separator="\t")
+        .cast({"date": pl.Date, "date_submitted": pl.Date}, strict=False)
+        .filter(
+            pl.col("date").is_not_null(),
+            pl.col("date") >= date_l,
+            pl.col("date") < date_u,
+            pl.col("date_submitted").is_not_null(),
+            country="USA",
+            host="Homo sapiens",
+        )
+        .with_columns(
+            lag=(pl.col("date_submitted") - pl.col("date")).dt.total_days()
+        )
+        .collect()
+    )
+
+    low = (
+        config["empirical_lag"]["low"]
+        if config["empirical_lag"]["low"] is not None
+        else df["lag"].min() - 1
+    )  # type: ignore
+    high = (
+        config["empirical_lag"]["high"]
+        if config["empirical_lag"]["high"] is not None
+        else df["lag"].max() + 1
+    )  # type: ignore
+    lags = df["lag"].to_numpy()
+
+    for scale in config["empirical_lag"]["scaling_factors"]:
+        if scale > 0.0:
+            knots, coef = BHSQI.bshqi(
+                samples=lags * scale,
+                n_steps=500,
+                low=low,  # type: ignore
+                high=high,  # type: ignore
+            )
+
+            params = {
+                "knots": knots.tolist(),
+                "coef": coef.tolist(),
+            }
+        else:
+            params = {}
+
+        with open(f"pipeline/out/lags/{scale}.json", "w") as outfile:
+            json.dump(params, outfile)

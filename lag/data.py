@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Any, Optional, Self
 
 import dendropy
 import numpy as np
 from numpy.typing import NDArray
-from typing_extensions import Self
 
 from lag.utils import choose2, rle_vals
 
@@ -80,7 +79,7 @@ class CoalescentData(LaggableGenomicData):
             If providing rate_shift_times when the rate indices in the intervals are not
             0, 1, 2, ..., use this to specify what the indices are.
         intervals: Optional[NDArray]
-            Allows construction of a new
+            Allows construction of a new object from internal CoalescentData.intervals directly.
         likelihood_only: bool
         """
         self.tree = None
@@ -338,6 +337,35 @@ class CoalescentData(LaggableGenomicData):
             tree,
             times,
         )
+
+    def serialize(self) -> dict:
+        """
+        Writes a dict of lists of key times which can be stored as json.
+        """
+        return {
+            "coalescent_times": [float(ct) for ct in self.coalescent_times],
+            "sampling_times": [float(st) for st in self.sampling_times],
+            "rate_shift_times": [float(rt) for rt in self.rate_shift_times],
+            "rate_indices": [int(ri) for ri in rle_vals(self.rate_indexer)],
+        }
+
+    @classmethod
+    def unserialize(cls, serialized: dict[str, list]) -> Self:
+        """
+        Make a new CoalescentData object from output of .serialize().
+        """
+        expected_arrays = {
+            "coalescent_times",
+            "sampling_times",
+            "rate_shift_times",
+            "rate_indices",
+        }
+        assert set(serialized) == expected_arrays
+        kwargs: dict[str, Any] = {
+            k: np.array(v) for k, v in serialized.items()
+        }
+
+        return cls(**kwargs)
 
     ##################
     # Data accessors #
