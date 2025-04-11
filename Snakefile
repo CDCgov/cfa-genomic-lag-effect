@@ -57,3 +57,14 @@ rule simulate_data:
 
     shell:
         "python3 -m pipeline.simulate_data --config pipeline/config.json --scenario {wildcards.scenario} --i0 {wildcards.i0} --scaling_factor {wildcards.scaling_factor} --rep {wildcards.rep} --infile {input} --outfile {output}"
+
+rule analyze:
+    input:
+        "pipeline/out/coalescent/{scenario}_{i0}_{scaling_factor}_{rep}.json",
+        "pipeline/out/rt/{scenario}.txt",
+
+    output:
+        "pipeline/out/analysis/{scenario}_{i0}_{scaling_factor}_{rep}.json"
+
+    shell:
+        "python3 -m pipeline.analyze --infile {input} --outfile {output}"

@@ -11,6 +11,7 @@ numpy = "^2.2.3"
 numpyro = "^0.17.0"
 jax = "^0.5.2"
 dendropy = "^5.0.1"
+arviz = "^0.21.0"
 
 
 [tool.poetry.group.dev.dependencies]

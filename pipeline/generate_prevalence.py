@@ -9,7 +9,7 @@ if __name__ == "__main__":
 
     gen_int = len(config["renewal"]["infectious_profile"])
 
-    incidence = np.loadtxt(args.infile)
+    incidence = np.loadtxt(args.infile[0])
 
     prevalence = RenewalCoalescentModel.daily_prevalence(incidence, gen_int)
 

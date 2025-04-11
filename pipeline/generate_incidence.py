@@ -10,7 +10,7 @@ if __name__ == "__main__":
     rev_inf_prof = np.flip(config["renewal"]["infectious_profile"])
     gen_int = len(rev_inf_prof)
 
-    weekly_rt = np.loadtxt(args.infile)
+    weekly_rt = np.loadtxt(args.infile[0])
     rt = np.repeat(weekly_rt, 7)
 
     scenario = args.scenario
