@@ -1,3 +1,55 @@
 {
-    "nextstrain_path" : "path/to/nextstrain's/metadata.tsv"
+    "seed" : 42,
+    "empirical_lag" : {
+        "nextstrain_path" : "path/to/nextstrain's/metadata.tsv",
+        "date_lower" : {
+            "y" : 2020,
+            "m" : 1,
+            "d" : 1
+        },
+        "date_upper" : {
+            "y" : 2025,
+            "m" : 1,
+            "d" : 1
+        },
+        "n_steps" : 500,
+        "low" : 0.0,
+        "high" : null,
+        "scaling_factors" : [0.0, 0.25, 0.5, 0.75, 1.0]
+    },
+    "simulations" : {
+        "sampling" : {
+            "comments" : ["weekday_effect obtained as empirical frequency of Sunday through Saturday in US Nextstrain data, 2020-01-01 to 2025-01-01"],
+            "weekday_effect" : [0.09, 0.18, 0.18, 0.17, 0.15, 0.14, 0.1],
+            "n_samples" : 2000,
+            "n_sampled_weeks" : 12
+        },
+        "n_rep" : 3,
+        "n_init_weeks" : 39,
+        "n_change_weeks" : 13,
+        "r_low" : 0.8,
+        "r_med" : 1.0,
+        "r_high" : 1.2,
+        "r_sd" : 0.03162277660168379,
+        "r_ac" : 0.7,
+        "rt_scenarios" : ["decreasing", "constant", "increasing"],
+        "i0" : [1000, 2000, 4000]
+    },
+    "renewal" : {
+        "comments" : ["Infectious distribution is generation_interval.csv from https://github.com/cdcent/cfa-forecast-renewal-ww/tree/main/input/saved_pmfs as of 6096f8f0"],
+        "infectious_profile" : [0.16174201341157, 0.320625889390807, 0.242283351248733, 0.134652559431048, 0.0689218448080527, 0.0345873307236478, 0.0175305676468834, 0.00900188393721926, 0.0048814763363626, 0.00258678762113042, 0.00144458017530763, 0.000825330494803486, 0.000478236415587845, 0.000270544021118098, 0.000167604337729198],
+        "init_growth_steps" : 50,
+        "init_growth_rate" : 0.0
+    },
+    "bayes" : {
+        "mcmc" : {
+            "num_warmup" : 100,
+            "num_samples" : 100,
+            "num_chains" : 1
+        },
+        "nuts" : {
+            "init_strategy" : "init_to_sample"
+        },
+        "ci_alpha" : 0.11
+    }
 }
