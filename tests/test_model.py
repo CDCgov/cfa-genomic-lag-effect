@@ -24,7 +24,6 @@ def test_offset_same_loglik():
     prevalence = np.arange(1, 21)
 
     coal_data = data.CoalescentData(coals, samps, rate_grid)
-    print(coal_data.intervals)
 
     lnl_no_offset = float(
         RenewalCoalescentModel.log_likelihood(coal_data, foi, prevalence)

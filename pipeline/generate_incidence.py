@@ -1,23 +1,28 @@
 import numpy as np
 
 from lag.models import RenewalCoalescentModel
+from pipeline.utils import parser, read_config
 
-rev_inf_prof = np.flip(snakemake.params.infectious_profile)  # noqa: F821 # type: ignore
-gen_int = len(rev_inf_prof)
+if __name__ == "__main__":
+    args = parser.parse_args()
+    config = read_config(args.config)
 
-weekly_rt = np.loadtxt(snakemake.input[0])  # noqa: F821 # type: ignore
-rt = np.repeat(weekly_rt, 7)
+    rev_inf_prof = np.flip(config["renewal"]["infectious_profile"])
+    gen_int = len(rev_inf_prof)
 
-scenario = snakemake.wildcards.scenario  # noqa: F821 # type: ignore
-i0 = snakemake.wildcards.i0  # noqa: F821 # type: ignore
+    weekly_rt = np.loadtxt(args.infile)
+    rt = np.repeat(weekly_rt, 7)
 
-incidence = RenewalCoalescentModel.daily_incidence(
-    rt,
-    rev_inf_prof,
-    int(i0),
-    snakemake.params.init_growth_rate,  # noqa: F821 # type: ignore
-    snakemake.params.init_growth_steps,  # noqa: F821 # type: ignore
-)
+    scenario = args.scenario
+    i0 = args.i0
 
-with open(snakemake.output[0], "w") as outfile:  # noqa: F821 # type: ignore
-    outfile.write("\n".join([str(i) for i in incidence]))
+    incidence = RenewalCoalescentModel.daily_incidence(
+        rt,
+        rev_inf_prof,
+        int(i0),
+        config["renewal"]["init_growth_rate"],
+        config["renewal"]["init_growth_steps"],
+    )
+
+    with open(args.outfile, "w") as outfile:
+        outfile.write("\n".join([str(i) for i in incidence]))

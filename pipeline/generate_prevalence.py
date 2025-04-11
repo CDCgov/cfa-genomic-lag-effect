@@ -1,15 +1,20 @@
 import numpy as np
 
 from lag.models import RenewalCoalescentModel
+from pipeline.utils import parser, read_config
 
-gen_int = len(snakemake.params.infectious_profile)  # noqa: F821 # type: ignore
+if __name__ == "__main__":
+    args = parser.parse_args()
+    config = read_config(args.config)
 
-incidence = np.loadtxt(snakemake.input[0])  # noqa: F821 # type: ignore
+    gen_int = len(config["renewal"]["infectious_profile"])
 
-prevalence = RenewalCoalescentModel.daily_prevalence(incidence, gen_int)
+    incidence = np.loadtxt(args.infile)
 
-with open(
-    snakemake.output[0],  # noqa: F821 # type: ignore
-    "w",
-) as outfile:
-    outfile.write("\n".join([str(p) for p in prevalence]))
+    prevalence = RenewalCoalescentModel.daily_prevalence(incidence, gen_int)
+
+    with open(
+        args.outfile,
+        "w",
+    ) as outfile:
+        outfile.write("\n".join([str(p) for p in prevalence]))

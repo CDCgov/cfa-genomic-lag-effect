@@ -3,47 +3,98 @@ import json
 import numpy as np
 
 from lag.models import RenewalCoalescentModel
-from pipeline.utils import LagSampler, construct_seed, simulate_sampling_times
+from pipeline.fit_lags import BHSQI
+from pipeline.utils import construct_seed, parser, read_config
 
-lag_scale = float(snakemake.wildcards.scaling_factor)  # type: ignore  # noqa: F821
 
-seed = construct_seed(
-    snakemake.params.seed,  # type: ignore  # noqa: F821
-    snakemake.wildcards.scenario,  # type: ignore  # noqa: F821
-    snakemake.wildcards.i0,  # type: ignore  # noqa: F821
-    snakemake.wildcards.scaling_factor,  # type: ignore  # noqa: F821
-    snakemake.wildcards.rep,  # type: ignore  # noqa: F821
-)
-rng = np.random.default_rng(seed)
+class LagSampler:
+    """
+    Wrapper for BHSQI that allows 0 lag.
+    """
 
-rate_shift_times = np.arange(1, snakemake.params.n_weeks * 7)  # type: ignore  # noqa: F821
-n_days = rate_shift_times.shape[0] + 1
+    def __init__(self, list_params):
+        if list_params == {}:
+            self.bhsqi = None
+        else:
+            self.bhsqi = BHSQI(
+                np.array(list_params["knots"]), np.array(list_params["coef"])
+            )
 
-backwards_incidence = np.flip(np.loadtxt(snakemake.input[0]))[:n_days]  # type: ignore  # noqa: F821
-backwards_prevalence = np.flip(np.loadtxt(snakemake.input[1]))[:n_days]  # type: ignore  # noqa: F821
+    def draw(self, size: int, rng: np.random.Generator) -> np.typing.NDArray:
+        if self.bhsqi is None:
+            return np.array([0.0] * size)
+        else:
+            return self.bhsqi.draw(size=size, rng=rng)
 
-with open(snakemake.input[2], "r") as file:  # type: ignore  # noqa: F821
-    lag_params = json.load(file)
 
-lag_sampler = LagSampler(lag_params)
+def simulate_sampling_times(
+    weekday_effect, n_sampled_weeks, n_samples, rng: np.random.Generator
+) -> np.typing.NDArray:
+    """
+    Samples come in uniformly during a day, at different rates per day of week, over a range of weeks before present day.
+    """
+    n_days = n_sampled_weeks * 7
 
-samp_times = simulate_sampling_times(
-    snakemake.params.weekday_effect,  # type: ignore  # noqa: F821
-    snakemake.params.n_sampled_weeks,  # type: ignore  # noqa: F821
-    snakemake.params.n_samples,  # type: ignore  # noqa: F821
-    rng,
-)
-unlagged_data = RenewalCoalescentModel.simulate_coalescent_times(
-    samp_times,
-    rate_shift_times,
-    backwards_incidence,
-    backwards_prevalence,
-)
-lags = lag_sampler.draw(snakemake.params.n_samples, rng)  # type: ignore  # noqa: F821
-data = unlagged_data.as_of(as_of=0.0, lags=lags)
+    probs = np.tile(weekday_effect, n_sampled_weeks)
+    probs = probs / probs.sum()
 
-with open(
-    snakemake.output[0],  # type: ignore  # noqa: F821
-    "w",
-) as outfile:
-    json.dump(data.serialize(), outfile)
+    backwards_times = n_days - (
+        rng.choice(n_days, size=n_samples, replace=True)
+        + rng.uniform(0.0, 1.0, size=n_samples)
+    )
+
+    return backwards_times
+
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+    config = read_config(args.config)
+
+    lag_scale = float(args.scaling_factor)
+
+    seed = construct_seed(
+        config["seed"],
+        args.scenario,
+        args.i0,
+        args.scaling_factor,
+        args.rep,
+    )
+    rng = np.random.default_rng(seed)
+
+    n_weeks = (
+        config["simulations"]["n_init_weeks"]
+        + config["simulations"]["n_change_weeks"]
+    )
+    rate_shift_times = np.arange(1, n_weeks * 7)
+    n_days = rate_shift_times.shape[0] + 1
+
+    backwards_incidence = np.flip(np.loadtxt(args.infile[0]))[:n_days]
+    backwards_prevalence = np.flip(np.loadtxt(args.infile[1]))[:n_days]
+
+    with open(args.infile[2], "r") as file:
+        lag_params = json.load(file)
+
+    lag_sampler = LagSampler(lag_params)
+
+    samp_times = simulate_sampling_times(
+        config["simulations"]["sampling"]["weekday_effect"],
+        config["simulations"]["sampling"]["n_sampled_weeks"],
+        config["simulations"]["sampling"]["n_samples"],
+        rng,
+    )
+    unlagged_data = RenewalCoalescentModel.simulate_coalescent_times(
+        samp_times,
+        rate_shift_times,
+        backwards_incidence,
+        backwards_prevalence,
+    )
+    lags = lag_sampler.draw(
+        config["simulations"]["sampling"]["n_samples"], rng
+    )
+    data = unlagged_data.as_of(as_of=0.0, lags=lags)
+
+    with open(
+        args.outfile,
+        "w",
+    ) as outfile:
+        json.dump(data.serialize(), outfile)

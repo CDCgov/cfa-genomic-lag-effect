@@ -1,38 +1,86 @@
 import numpy as np
 
-from pipeline.utils import generate_rt_scenario
+from pipeline.utils import construct_seed, parser, read_config
 
-rt_scenarios = {
-    "decreasing": (
-        snakemake.params.r_med,  # type: ignore  # noqa: F821
-        snakemake.params.r_low,  # type: ignore  # noqa: F821
-    ),
-    "constant": (
-        snakemake.params.r_med,  # type: ignore  # noqa: F821
-        snakemake.params.r_med,  # type: ignore  # noqa: F821
-    ),
-    "increasing": (
-        snakemake.params.r_med,  # type: ignore  # noqa: F821
-        snakemake.params.r_high,  # type: ignore  # noqa: F821
-    ),
-}
 
-rng = np.random.default_rng(snakemake.params.seed)  # type: ignore  # noqa: F821
-for scenario, rtup in rt_scenarios.items():
-    with open(f"pipeline/out/rt/{scenario}.txt", "w") as outfile:
-        outfile.write(
-            "\n".join(
-                [
-                    str(rt)
-                    for rt in generate_rt_scenario(
-                        rtup[0],
-                        rtup[1],
-                        snakemake.params.n_init_weeks,  # type: ignore  # noqa: F821
-                        snakemake.params.n_change_weeks,  # type: ignore  # noqa: F821
-                        snakemake.params.sd,  # type: ignore  # noqa: F821
-                        snakemake.params.ac,  # type: ignore  # noqa: F821
-                        rng,
-                    )  # type: ignore  # noqa: F821
-                ]
-            )
+def ar1(
+    mu: np.typing.NDArray,
+    sd: float,
+    ac: float,
+    rng: np.random.Generator,
+):
+    """
+    Draw from an AR1 process with mean vector mu,
+    standard deviation sd, and autocorrelation ac.
+    """
+    n = mu.shape[0]
+    z = rng.normal(loc=0.0, scale=1.0, size=n) * sd
+    x = np.zeros(n)
+    x[0] = z[0]
+    for i in range(1, n):
+        x[i] = x[i - 1] * ac + z[i]
+    return np.exp(np.log(mu) + x)
+
+
+def generate_rt_scenario(
+    r_init: float,
+    r_final: float,
+    init_weeks: int,
+    change_weeks: int,
+    sd: float,
+    ac: float,
+    rng: np.random.Generator = np.random.default_rng(),
+):
+    """
+    Generates an Rt time series from an AR1 process where for `init_weeks` Rt
+    has median `r_init`, then the median changes towards `r_final` over the
+    course of `change_weeks`.
+    """
+    mean = np.concat(
+        (
+            np.array([r_init] * init_weeks),
+            np.linspace(r_init, r_final, change_weeks),
         )
+    )
+
+    return ar1(mean, sd, ac, rng)
+
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+    config = read_config(args.config)
+
+    rt_scenarios = {
+        "decreasing": (
+            config["simulations"]["r_med"],
+            config["simulations"]["r_low"],
+        ),
+        "constant": (
+            config["simulations"]["r_med"],
+            config["simulations"]["r_med"],
+        ),
+        "increasing": (
+            config["simulations"]["r_med"],
+            config["simulations"]["r_high"],
+        ),
+    }
+
+    seed = construct_seed(
+        config["seed"],
+        scenario=args.scenario,
+        i0=None,
+        scaling_factor=None,
+        rep=None,
+    )
+    weekly_rt = generate_rt_scenario(
+        rt_scenarios[args.scenario][0],
+        rt_scenarios[args.scenario][1],
+        config["simulations"]["n_init_weeks"],
+        config["simulations"]["n_change_weeks"],
+        config["simulations"]["r_sd"],
+        config["simulations"]["r_ac"],
+        np.random.default_rng(seed),
+    )
+
+    with open(args.outfile, "w") as outfile:
+        outfile.write("\n".join([str(rt) for rt in weekly_rt]))
