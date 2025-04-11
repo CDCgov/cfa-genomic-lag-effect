@@ -1,55 +1,38 @@
-import argparse
-import json
-
 import numpy as np
-from numpy.typing import NDArray
 
+from pipeline.utils import generate_rt_scenario
 
-def ar1(
-    mu: NDArray,
-    sd: float,
-    ac: float,
-    rng: np.random.Generator = np.random.default_rng(),
-):
-    """
-    Draw from an AR1 process with mean vector mu,
-    standard deviation sd, and autocorrelation ac.
-    """
-    n = mu.shape[0]
-    z = rng.normal(loc=0.0, scale=1.0, size=n) * sd
-    x = np.zeros(n)
-    x[0] = z[0]
-    for i in range(1, n):
-        x[i] = x[i - 1] * ac + z[i]
-    return np.exp(np.log(mu) + x)
+rt_scenarios = {
+    "decreasing": (
+        snakemake.params.r_med,  # type: ignore  # noqa: F821
+        snakemake.params.r_low,  # type: ignore  # noqa: F821
+    ),
+    "constant": (
+        snakemake.params.r_med,  # type: ignore  # noqa: F821
+        snakemake.params.r_med,  # type: ignore  # noqa: F821
+    ),
+    "increasing": (
+        snakemake.params.r_med,  # type: ignore  # noqa: F821
+        snakemake.params.r_high,  # type: ignore  # noqa: F821
+    ),
+}
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Simulate and store 3 Rt trends over time."
-    )
-    parser.add_argument(
-        "--config",
-        type=str,
-        help="Path to JSON configuration file",
-    )
-
-    with open(parser.parse_args().config, "r") as file:
-        config = json.load(file)
-
-    n_weeks = config["simulations"]["n_weeks"]
-    r_low = config["simulations"]["r_low"]
-    r_high = config["simulations"]["r_high"]
-    r_const = config["simulations"]["r_const"]
-    rt_scenarios = {
-        "decreasing": np.linspace(r_high, r_low, n_weeks),
-        "constant": np.array([r_const] * n_weeks),
-        "increasing": np.linspace(r_low, r_high, n_weeks),
-    }
-
-    sd = config["simulations"]["r_sd"]
-    ac = config["simulations"]["r_ac"]
-    rng = np.random.default_rng(config["seed"])
-    for scenario, mean in rt_scenarios.items():
-        with open(f"pipeline/out/rt/{scenario}.txt", "w") as outfile:
-            outfile.write("\n".join([str(rt) for rt in ar1(mean, sd, ac)]))
+rng = np.random.default_rng(snakemake.params.seed)  # type: ignore  # noqa: F821
+for scenario, rtup in rt_scenarios.items():
+    with open(f"pipeline/out/rt/{scenario}.txt", "w") as outfile:
+        outfile.write(
+            "\n".join(
+                [
+                    str(rt)
+                    for rt in generate_rt_scenario(
+                        rtup[0],
+                        rtup[1],
+                        snakemake.params.n_init_weeks,  # type: ignore  # noqa: F821
+                        snakemake.params.n_change_weeks,  # type: ignore  # noqa: F821
+                        snakemake.params.sd,  # type: ignore  # noqa: F821
+                        snakemake.params.ac,  # type: ignore  # noqa: F821
+                        rng,
+                    )  # type: ignore  # noqa: F821
+                ]
+            )
+        )

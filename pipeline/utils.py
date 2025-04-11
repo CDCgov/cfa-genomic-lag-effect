@@ -1,9 +1,6 @@
-import argparse
-import json
 from typing import Optional
 
 import numpy as np
-import polars as pl
 from numpy.typing import NDArray
 from scipy.interpolate import BSpline
 from scipy.optimize import brentq
@@ -126,76 +123,112 @@ class BHSQI:
         )  # type: ignore
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Fit BHSQI approximations to scaled sample lags and save parameters to JSON."
-    )
-    parser.add_argument(
-        "--config",
-        type=str,
-        help="Path to JSON configuration file",
-    )
+class LagSampler:
+    """
+    Wrapper for BHSQI that allows 0 lag.
+    """
 
-    with open(parser.parse_args().config, "r") as file:
-        config = json.load(file)
-
-    ns_path = config["empirical_lag"]["nextstrain_path"]
-
-    date_l = pl.date(
-        config["empirical_lag"]["date_lower"]["y"],
-        config["empirical_lag"]["date_lower"]["m"],
-        config["empirical_lag"]["date_lower"]["d"],
-    )
-    date_u = pl.date(
-        config["empirical_lag"]["date_upper"]["y"],
-        config["empirical_lag"]["date_upper"]["m"],
-        config["empirical_lag"]["date_upper"]["d"],
-    )
-
-    df = (
-        pl.scan_csv(ns_path, separator="\t")
-        .cast({"date": pl.Date, "date_submitted": pl.Date}, strict=False)
-        .filter(
-            pl.col("date").is_not_null(),
-            pl.col("date") >= date_l,
-            pl.col("date") < date_u,
-            pl.col("date_submitted").is_not_null(),
-            country="USA",
-            host="Homo sapiens",
-        )
-        .with_columns(
-            lag=(pl.col("date_submitted") - pl.col("date")).dt.total_days()
-        )
-        .collect()
-    )
-
-    low = (
-        config["empirical_lag"]["low"]
-        if config["empirical_lag"]["low"] is not None
-        else df["lag"].min() - 1
-    )  # type: ignore
-    high = (
-        config["empirical_lag"]["high"]
-        if config["empirical_lag"]["high"] is not None
-        else df["lag"].max() + 1
-    )  # type: ignore
-    lags = df["lag"].to_numpy()
-
-    for scale in config["empirical_lag"]["scaling_factors"]:
-        if scale > 0.0:
-            knots, coef = BHSQI.bshqi(
-                samples=lags * scale,
-                n_steps=500,
-                low=low,  # type: ignore
-                high=high,  # type: ignore
+    def __init__(self, list_params):
+        if list_params == {}:
+            self.bhsqi = None
+        else:
+            self.bhsqi = BHSQI(
+                np.array(list_params["knots"]), np.array(list_params["coef"])
             )
 
-            params = {
-                "knots": knots.tolist(),
-                "coef": coef.tolist(),
-            }
+    def draw(self, size: int, rng: np.random.Generator) -> NDArray:
+        if self.bhsqi is None:
+            return np.array([0.0] * size)
         else:
-            params = {}
+            return self.bhsqi.draw(size=size, rng=rng)
 
-        with open(f"pipeline/out/lags/{scale}.json", "w") as outfile:
-            json.dump(params, outfile)
+
+def ar1(
+    mu: NDArray,
+    sd: float,
+    ac: float,
+    rng: np.random.Generator,
+):
+    """
+    Draw from an AR1 process with mean vector mu,
+    standard deviation sd, and autocorrelation ac.
+    """
+    n = mu.shape[0]
+    z = rng.normal(loc=0.0, scale=1.0, size=n) * sd
+    x = np.zeros(n)
+    x[0] = z[0]
+    for i in range(1, n):
+        x[i] = x[i - 1] * ac + z[i]
+    return np.exp(np.log(mu) + x)
+
+
+def construct_seed(
+    root_seed: int, scenario: str, i0: str, scaling_factor: str, rep: str
+):
+    scenario_to_int = {
+        "decreasing": "0",
+        "constant": "1",
+        "increasing": "2",
+    }
+    i0_to_int = {
+        "1000": "0",
+        "2000": "1",
+        "4000": "2",
+    }
+    scale_to_int = {
+        "0.0": "0",
+        "0.25": "1",
+        "0.5": "2",
+        "0.75": "3",
+        "1.0": "4",
+    }
+    return int(
+        str(root_seed)
+        + scenario_to_int[scenario]
+        + i0_to_int[i0]
+        + scale_to_int[scaling_factor]
+        + rep
+    )
+
+
+def generate_rt_scenario(
+    r_init: float,
+    r_final: float,
+    init_weeks: int,
+    change_weeks: int,
+    sd: float,
+    ac: float,
+    rng: np.random.Generator = np.random.default_rng(),
+):
+    """
+    Generates an Rt time series from an AR1 process where for `init_weeks` Rt
+    has median `r_init`, then the median changes towards `r_final` over the
+    course of `change_weeks`.
+    """
+    mean = np.concat(
+        (
+            np.array([r_init] * init_weeks),
+            np.linspace(r_init, r_final, change_weeks),
+        )
+    )
+
+    return ar1(mean, sd, ac, rng)
+
+
+def simulate_sampling_times(
+    weekday_effect, n_sampled_weeks, n_samples, rng: np.random.Generator
+) -> NDArray:
+    """
+    Samples come in uniformly during a day, at different rates per day of week, over a range of weeks before present day.
+    """
+    n_days = n_sampled_weeks * 7
+
+    probs = np.tile(weekday_effect, n_sampled_weeks)
+    probs = probs / probs.sum()
+
+    backwards_times = n_days - (
+        rng.choice(n_days, size=n_samples, replace=True)
+        + rng.uniform(0.0, 1.0, size=n_samples)
+    )
+
+    return backwards_times
