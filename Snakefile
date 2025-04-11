@@ -5,7 +5,7 @@ configfile: "pipeline/config.json"
 rule all:
     input:
         expand(
-            "pipeline/out/coalescent/{scenario}_{i0}_{scaling_factor}_{rep}.json",
+            "pipeline/out/analysis/{scenario}_{i0}_{scaling_factor}_{rep}.json",
             scenario=config["simulations"]["rt_scenarios"],
             i0=config["simulations"]["i0"],
             scaling_factor=config["empirical_lag"]["scaling_factors"],
@@ -67,4 +67,4 @@ rule analyze:
         "pipeline/out/analysis/{scenario}_{i0}_{scaling_factor}_{rep}.json"
 
     shell:
-        "python3 -m pipeline.analyze --infile {input} --outfile {output}"
+        "python3 -m pipeline.analyze --config pipeline/config.json --infile {input} --outfile {output}"
