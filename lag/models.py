@@ -235,9 +235,6 @@ class RenewalCoalescentModel(RtModel):
                 time += wt
                 coalescent_times.append(time)
                 n_active -= 1
-            # print(
-            #     f"Iterating; time = {time}, len(coalescent_times) = {len(coalescent_times)}"
-            # )
             rate_inv = 1.0 / RenewalCoalescentModel.coalescent_rate(
                 prevalence[rate_idx],
                 n_active,
