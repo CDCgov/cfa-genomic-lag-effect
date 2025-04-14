@@ -15,13 +15,17 @@ rule all:
 rule diagnostics:
     input:
         expand(
-            "pipeline/out/lag/plot_{scaling_factor}.png",
-            scaling_factor=config["empirical_lag"]["scaling_factors"],
-        ),
-        expand(
-            "pipeline/out/infections/plot_{scenario}_{i0}.png",
+            "pipeline/out/infections/{scenario}_{i0}.png",
             scenario=config["simulations"]["rt_scenarios"],
             i0=config["simulations"]["i0"],
+        ),
+        expand(
+            "pipeline/out/rt/{scenario}.png",
+            scenario=config["simulations"]["rt_scenarios"],
+        ),
+        expand(
+            "pipeline/out/lag/{scaling_factor}.png",
+            scaling_factor=config["empirical_lag"]["scaling_factors"],
         ),
 
 
@@ -31,6 +35,16 @@ rule simulate_rt:
 
     shell:
         "python3 -m pipeline.simulate_rt --config pipeline/config.json --scenario {wildcards.scenario} --outfile {output}"
+
+rule plot_rt_diagnostic:
+    input:
+        "pipeline/out/rt/{scenario}.txt"
+
+    output:
+        "pipeline/out/rt/{scenario}.png",
+
+    shell:
+        "python3 -m pipeline.plot_rt --config pipeline/config.json --scenario {wildcards.scenario} --infile {input} --outfile {output}"
 
 rule generate_incidence:
     input:
@@ -58,7 +72,7 @@ rule plot_infection_diagnostics:
         "pipeline/out/infections/prevalence_{scenario}_{i0}.txt",
 
     output:
-        "pipeline/out/infections/plot_{scenario}_{i0}.png"
+        "pipeline/out/infections/{scenario}_{i0}.png"
 
     shell:
         "python3 -m pipeline.plot_infections --config pipeline/config.json --infile {input} --outfile {output}"
@@ -75,7 +89,7 @@ rule plot_lag_diagnostic:
         "pipeline/out/lag/fit.json",
 
     output:
-        "pipeline/out/lag/plot_{scaling_factor}.png",
+        "pipeline/out/lag/{scaling_factor}.png",
 
     shell:
         "python3 -m pipeline.plot_lag --config pipeline/config.json --scaling_factor {wildcards.scaling_factor} --infile {input} --outfile {output}"
