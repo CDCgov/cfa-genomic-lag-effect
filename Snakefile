@@ -18,7 +18,7 @@ rule diagnostics:
             "pipeline/out/lag/plot_{scaling_factor}.png",
             scaling_factor=config["empirical_lag"]["scaling_factors"],
         )
-    
+
 
 rule simulate_rt:
     output:

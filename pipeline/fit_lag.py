@@ -9,6 +9,7 @@ from scipy.optimize import brentq
 
 from pipeline.utils import parser, read_config
 
+
 class BHSQI:
     """
     A class for spline interpolation of probability densities.
@@ -100,38 +101,60 @@ class BHSQI:
             coef,
         )
 
-    def cdf(self, x, location = 0.0, scale = 1.0) -> NDArray:
+    def cdf(self, x, location=0.0, scale=1.0) -> NDArray:
         return np.where(
-            LocationScale.reverse(x, location, scale) <= self.xmin, 0.0, np.where(LocationScale.reverse(x, location, scale) >= self.xmax, 1.0, self._cdf(LocationScale.reverse(x, location, scale)))
+            LocationScale.reverse(x, location, scale) <= self.xmin,
+            0.0,
+            np.where(
+                LocationScale.reverse(x, location, scale) >= self.xmax,
+                1.0,
+                self._cdf(LocationScale.reverse(x, location, scale)),
+            ),
         )
 
     def draw(
-        self, size: int, location = 0.0, scale = 1.0, rng: np.random.Generator = np.random.default_rng()
+        self,
+        size: int,
+        location=0.0,
+        scale=1.0,
+        rng: np.random.Generator = np.random.default_rng(),
     ) -> NDArray:
         u = rng.uniform(low=0.0, high=self.pmax, size=size)
-        return np.array([self.quantile_function(uu, location=location, scale=scale) for uu in u])
+        return np.array(
+            [
+                self.quantile_function(uu, location=location, scale=scale)
+                for uu in u
+            ]
+        )
 
-    def pdf(self, x, location = 0.0, scale = 1.0) -> NDArray:
+    def pdf(self, x, location=0.0, scale=1.0) -> NDArray:
         if scale == 0.0:
             return np.where(x == location, np.inf, 0.0)
         else:
             return np.where(
-                LocationScale.reverse(x, location, scale) <= self.xmin, 0.0, np.where(LocationScale.reverse(x, location, scale) >= self.xmax, 0.0, self._pdf(LocationScale.reverse(x, location, scale)))
+                LocationScale.reverse(x, location, scale) <= self.xmin,
+                0.0,
+                np.where(
+                    LocationScale.reverse(x, location, scale) >= self.xmax,
+                    0.0,
+                    self._pdf(LocationScale.reverse(x, location, scale)),
+                ),
             )
 
-    def quantile_function(self, p: float, location = 0.0, scale = 1.0) -> float:
+    def quantile_function(self, p: float, location=0.0, scale=1.0) -> float:
         interval = np.argwhere(self.cdf_precompute <= p).max()
         if p == self.cdf_precompute[interval]:
             return float(self.cdf_points[interval])
         remainder = p - self.cdf_precompute[interval]
-        unscaled =  brentq(
+        unscaled = brentq(
             lambda x: self._pdf.integrate(self.cdf_points[interval], x)
             - remainder,
             self.cdf_points[interval],
             self.cdf_points[interval + 1],
         )
-        return LocationScale.forward(unscaled, location, scale) # type: ignore
-    
+        return LocationScale.forward(unscaled, location, scale)  # type: ignore
+
+
 class LocationScale:
     """
     A class for location-scale transformations.
@@ -141,6 +164,7 @@ class LocationScale:
 
     https://en.wikipedia.org/wiki/Location-scale_family
     """
+
     @staticmethod
     def forward(x, location, scale) -> NDArray:
         if scale == 0.0:
@@ -154,6 +178,7 @@ class LocationScale:
             return np.where(x == location, 0.0, np.inf)
         else:
             return (x - location) / scale
+
 
 def get_empirical_lag(config) -> NDArray:
     date_l = pl.date(
@@ -183,6 +208,7 @@ def get_empirical_lag(config) -> NDArray:
         .collect()
     )
     return df["lag"].to_numpy()
+
 
 if __name__ == "__main__":
     args = parser.parse_args()

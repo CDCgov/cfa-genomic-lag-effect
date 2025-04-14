@@ -69,7 +69,9 @@ if __name__ == "__main__":
         backwards_prevalence,
     )
     lags = lag_dist.draw(
-        size=config["simulations"]["sampling"]["n_samples"], scale=lag_scale, rng=rng
+        size=config["simulations"]["sampling"]["n_samples"],
+        scale=lag_scale,
+        rng=rng,
     )
     data = unlagged_data.as_of(as_of=0.0, lags=lags)
 
