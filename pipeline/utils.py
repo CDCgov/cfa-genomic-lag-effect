@@ -16,7 +16,7 @@ def construct_seed(
     scenario_to_int = {
         None: "0",
         "decreasing": "1",
-        "constant": "2",
+        "notrend": "2",
         "increasing": "3",
     }
     i0_to_int = {

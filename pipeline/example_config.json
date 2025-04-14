@@ -32,7 +32,7 @@
         "r_high" : 1.1,
         "r_sd" : 0.01,
         "r_ac" : 0.5,
-        "rt_scenarios" : ["decreasing", "constant", "increasing"],
+        "rt_scenarios" : ["decreasing", "notrend", "increasing"],
         "i0" : [1000, 2000, 4000]
     },
     "renewal" : {

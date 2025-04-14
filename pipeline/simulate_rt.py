@@ -55,7 +55,7 @@ if __name__ == "__main__":
             config["simulations"]["r_med"],
             config["simulations"]["r_low"],
         ),
-        "constant": (
+        "notrend": (
             config["simulations"]["r_med"],
             config["simulations"]["r_med"],
         ),

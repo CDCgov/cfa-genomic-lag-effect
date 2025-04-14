@@ -13,14 +13,14 @@ The simulation study also uses more special-purpose code (e.g., for approximatin
 
 The pipeline is implemented in [snakemake](https://snakemake.github.io/) (which will also be installed with `poetry install`).
 To run the pipeline, you will need to:
-1. Download and uncompress Nextstrain's open [metadata.tsv](https://docs.nextstrain.org/projects/ncov/en/latest/reference/remote_inputs.html). It can be placed anywhere.
+1. Download and uncompress Nextstrain's open [metadata.tsv](https://docs.nextstrain.org/projects/ncov/en/latest/reference/remote_inputs.html) for SARS-CoV-2. It can be placed anywhere.
 2. Create `scripts/config.json` by copying `scripts/example_config.json` and amending the `nextstrain_path` argument to point to (1).
 3. `poetry run snakemake` (using the ` -j1` flag is recommended when using multiple chains in NumPyro).
 
 Running the pipeline will take some time, as 100 replicate datasets are simulated and analyzed for each combination of:
-- 3 $R_t$ trends
-- 3 initial counts of incident infections
-- 5 rescalings of the empirical lag distribution, interpolating between the observed lags and instantaneous data availability.
+- 3 $R_t$ trends: a scenario with no trend where $R_t \approx 1$ for the entire time period of interest, a scenario where $R_t$ decreases in the most recent months, and a scenario where $R_t$ increases in the most recent months.
+- 3 initial counts of incident infections: 1,000, 2,000, and 4,000.
+- 5 distributions on the lag between sample collection and sequence availability. First, we obtain $\hat{f}(\ell)$, a [spline-based approximation](https://www.sciencedirect.com/science/article/pii/S0377042724003807) to the empirical probability density function of lags $\ell$ in the Nextstrain open data from 2020 to 2025. Then when simulating data we use $g(\ell) = k \ell$ for $k \in \{0, 1/4, 1/2, 3/4, 1\}$ to interpolate between a regime of instantaneous data availability and current reality.
 
 ### Visualizing the simulated scenarios
 
