@@ -9,7 +9,6 @@ from scipy.optimize import brentq
 
 from pipeline.utils import parser, read_config
 
-
 class BHSQI:
     """
     A class for spline interpolation of probability densities.
@@ -34,6 +33,9 @@ class BHSQI:
         self.cdf_points = self.knots[1:-1]
         self.pmax = self._cdf(self.xmax)
         self.cdf_precompute = self.cdf(self.cdf_points)
+
+        self.location = 0.0
+        self.scale = 1.0
 
     @classmethod
     def from_samples(
@@ -98,39 +100,62 @@ class BHSQI:
             coef,
         )
 
-    def cdf(self, x) -> NDArray:
+    def cdf(self, x, location = 0.0, scale = 1.0) -> NDArray:
         return np.where(
-            x <= self.xmin, 0.0, np.where(x >= self.xmax, 1.0, self._cdf(x))
+            LocationScale.reverse(x, location, scale) <= self.xmin, 0.0, np.where(LocationScale.reverse(x, location, scale) >= self.xmax, 1.0, self._cdf(LocationScale.reverse(x, location, scale)))
         )
 
     def draw(
-        self, size: int, rng: np.random.Generator = np.random.default_rng()
+        self, size: int, location = 0.0, scale = 1.0, rng: np.random.Generator = np.random.default_rng()
     ) -> NDArray:
         u = rng.uniform(low=0.0, high=self.pmax, size=size)
-        return np.array([self.quantile_function(uu) for uu in u])
+        return np.array([self.quantile_function(uu, location=location, scale=scale) for uu in u])
 
-    def pdf(self, x) -> NDArray:
-        return np.where(
-            x <= self.xmin, 0.0, np.where(x >= self.xmax, 0.0, self._pdf(x))
-        )
+    def pdf(self, x, location = 0.0, scale = 1.0) -> NDArray:
+        if scale == 0.0:
+            return np.where(x == location, np.inf, 0.0)
+        else:
+            return np.where(
+                LocationScale.reverse(x, location, scale) <= self.xmin, 0.0, np.where(LocationScale.reverse(x, location, scale) >= self.xmax, 0.0, self._pdf(LocationScale.reverse(x, location, scale)))
+            )
 
-    def quantile_function(self, p: float) -> float:
+    def quantile_function(self, p: float, location = 0.0, scale = 1.0) -> float:
         interval = np.argwhere(self.cdf_precompute <= p).max()
         if p == self.cdf_precompute[interval]:
             return float(self.cdf_points[interval])
         remainder = p - self.cdf_precompute[interval]
-        return brentq(
+        unscaled =  brentq(
             lambda x: self._pdf.integrate(self.cdf_points[interval], x)
             - remainder,
             self.cdf_points[interval],
             self.cdf_points[interval + 1],
-        )  # type: ignore
+        )
+        return LocationScale.forward(unscaled, location, scale) # type: ignore
+    
+class LocationScale:
+    """
+    A class for location-scale transformations.
 
+    Forward: g(x) = location + scale * x
+    Reverse: g'(x) = (x - location) / scale
 
-if __name__ == "__main__":
-    args = parser.parse_args()
-    config = read_config(args.config)
+    https://en.wikipedia.org/wiki/Location-scale_family
+    """
+    @staticmethod
+    def forward(x, location, scale) -> NDArray:
+        if scale == 0.0:
+            return np.zeros(np.shape(x))
+        else:
+            return location + scale * x
 
+    @staticmethod
+    def reverse(x, location, scale) -> NDArray:
+        if scale == 0.0:
+            return np.where(x == location, 0.0, np.inf)
+        else:
+            return (x - location) / scale
+
+def get_empirical_lag(config) -> NDArray:
     date_l = pl.date(
         config["empirical_lag"]["date_lower"]["y"],
         config["empirical_lag"]["date_lower"]["m"],
@@ -141,7 +166,6 @@ if __name__ == "__main__":
         config["empirical_lag"]["date_upper"]["m"],
         config["empirical_lag"]["date_upper"]["d"],
     )
-
     df = (
         pl.scan_csv(config["empirical_lag"]["nextstrain_path"], separator="\t")
         .cast({"date": pl.Date, "date_submitted": pl.Date}, strict=False)
@@ -158,8 +182,13 @@ if __name__ == "__main__":
         )
         .collect()
     )
+    return df["lag"].to_numpy()
 
-    lags = df["lag"].to_numpy()
+if __name__ == "__main__":
+    args = parser.parse_args()
+    config = read_config(args.config)
+
+    lags = get_empirical_lag(config)
 
     low = (
         config["empirical_lag"]["low"]
@@ -175,22 +204,17 @@ if __name__ == "__main__":
     assert low <= lags.min()
     assert high >= lags.min()
 
-    scale = float(args.scaling_factor)
+    knots, coef = BHSQI.bshqi(
+        samples=lags,
+        n_steps=500,
+        low=low,
+        high=high,
+    )
 
-    if scale > 0.0:
-        knots, coef = BHSQI.bshqi(
-            samples=lags * scale,
-            n_steps=500,
-            low=low,
-            high=high,
-        )
-
-        params = {
-            "knots": knots.tolist(),
-            "coef": coef.tolist(),
-        }
-    else:
-        params = {}
+    params = {
+        "knots": knots.tolist(),
+        "coef": coef.tolist(),
+    }
 
     with open(args.outfile, "w") as outfile:
         json.dump(params, outfile)
