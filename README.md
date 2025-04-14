@@ -7,11 +7,33 @@ It consists of a small python package, `lag`, and some associated utilities in `
 
 ## Getting started
 
-This is a [poetry](https://python-poetry.org/) project; `lag` can be installed with `poetry install` and interacted with via `poetry run python`.
+This is a [poetry](https://python-poetry.org/) project with a split codebase.
+The more general (and generalizable) modeling code is in the python package `lag`, which can be installed with `poetry install`.
+The simulation study also uses more special-purpose code (e.g., for approximating observed distributions of reporting lags), which live as callable python scripts in `pipeline/`.
 
-To use the (not yet built) pipeline in `/scripts`, you will need to:
-- Download and uncompress Nextstrain's open [metadata.tsv](https://docs.nextstrain.org/projects/ncov/en/latest/reference/remote_inputs.html).
-- Create `scripts/config.json` (it should look like `scripts/example_config.json`).
+The pipeline is implemented in [snakemake](https://snakemake.github.io/) (which will also be installed with `poetry install`).
+To run the pipeline, you will need to:
+1. Download and uncompress Nextstrain's open [metadata.tsv](https://docs.nextstrain.org/projects/ncov/en/latest/reference/remote_inputs.html). It can be placed anywhere.
+2. Create `scripts/config.json` by copying `scripts/example_config.json` and amending the `nextstrain_path` argument to point to (1).
+3. `poetry run snakemake` (using the ` -j1` flag is recommended when using multiple chains in NumPyro).
+
+Running the pipeline will take some time, as 100 replicate datasets are simulated and analyzed for each combination of:
+- 3 $R_t$ trends
+- 3 initial counts of incident infections
+- 5 rescalings of the empirical lag distribution, interpolating between the observed lags and instantaneous data availability.
+
+### Visualizing the simulated scenarios
+
+The command `poetry run snakemake diagnostics` will produce plots showing:
+- The 3 $R_t$ scenarios (in `pipeline/out/rt/`).
+- The 9 pairs of incidence and prevalence curves resulting from each $R_t$ scenario and initial incident infection count (in `pipeline/out/infections/`).
+- The scaled lag distributions (in `pipeline/out/lag/`) each a multi-panel plot showing
+  - The probability density function (minus the long upper 5\% tail).
+  - The cumulative distribution function (for the entire distribution).
+  - A comparison of the approximating distribution to the samples on which it was fit.
+  - A comparison of samples of the approximation to the approximation itself.
+
+Note that if snakemake has not yet been called, this will run some of the preliminary pipeline steps.
 
 ## Project Admin
 
