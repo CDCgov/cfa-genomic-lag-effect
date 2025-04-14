@@ -3,28 +3,8 @@ import json
 import numpy as np
 
 from lag.models import RenewalCoalescentModel
-from pipeline.fit_lags import BHSQI
+from pipeline.fit_lag import BHSQI
 from pipeline.utils import construct_seed, parser, read_config
-
-
-class LagSampler:
-    """
-    Wrapper for BHSQI that allows 0 lag.
-    """
-
-    def __init__(self, list_params):
-        if list_params == {}:
-            self.bhsqi = None
-        else:
-            self.bhsqi = BHSQI(
-                np.array(list_params["knots"]), np.array(list_params["coef"])
-            )
-
-    def draw(self, size: int, rng: np.random.Generator) -> np.typing.NDArray:
-        if self.bhsqi is None:
-            return np.array([0.0] * size)
-        else:
-            return self.bhsqi.draw(size=size, rng=rng)
 
 
 def simulate_sampling_times(
@@ -74,7 +54,7 @@ if __name__ == "__main__":
     with open(args.infile[2], "r") as file:
         lag_params = json.load(file)
 
-    lag_sampler = LagSampler(lag_params)
+    lag_dist = BHSQI(**lag_params)
 
     samp_times = simulate_sampling_times(
         config["simulations"]["sampling"]["weekday_effect"],
@@ -88,8 +68,10 @@ if __name__ == "__main__":
         backwards_incidence,
         backwards_prevalence,
     )
-    lags = lag_sampler.draw(
-        config["simulations"]["sampling"]["n_samples"], rng
+    lags = lag_dist.draw(
+        size=config["simulations"]["sampling"]["n_samples"],
+        scale=lag_scale,
+        rng=rng,
     )
     data = unlagged_data.as_of(as_of=0.0, lags=lags)
 
