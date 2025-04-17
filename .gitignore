@@ -1,4 +1,3 @@
-pipeline/config.json
 pipeline/output/*
 .snakemake
 pipeline/input/*

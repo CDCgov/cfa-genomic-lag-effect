@@ -101,9 +101,7 @@ The pipeline requires two inputs:
 
 Running `poetry run sh pipeline/setup.sh` will result in the requisite Nextstrain data being downloaded and uncompressed as well as the generation of three suitable $R\_t$ time series.
 
-With these inputs in place:
-- Create the pipeline config file via `cp scripts/example_config.json scripts/config.json` .
-- Run the pipeline via `poetry run snakemake -j1` (this flag keeps snakemake from conflicting with NumPyro and polars on core and memory usage).
+With these inputs in place, run the pipeline via `poetry run snakemake -j1` (this flag keeps snakemake from conflicting with NumPyro and polars on core and memory usage).
 
 
 ### Visualizing the simulated scenarios
