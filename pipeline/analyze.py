@@ -4,6 +4,7 @@ import arviz as az
 import jax
 import numpy as np
 import numpyro
+import polars as pl
 
 from lag.models import RenewalCoalescentModel
 from pipeline.utils import parser, read_config
@@ -23,8 +24,6 @@ if __name__ == "__main__":
 
     rev_inf_prof = np.flip(config["renewal"]["infectious_profile"])
     gen_int = len(rev_inf_prof)
-
-    true_weekly_rt = np.flip(np.loadtxt(args.infile[1]))
 
     intervals, par = RenewalCoalescentModel.preprocess_from_vectors(
         np.array(coal_dict["coalescent_times"]),
@@ -55,33 +54,37 @@ if __name__ == "__main__":
 
     summary = az.summary(inference)
 
-    posterior_weekly_rt = az.extract(
-        inference, "posterior", var_names=["weekly_rt"]
+    posterior_weekly_rt = (
+        pl.from_pandas(
+            az.extract(
+                inference, "posterior", var_names=["weekly_rt"]
+            ).to_pandas()
+        )
+        .with_columns(week=pl.int_range(pl.len()))
+        .unpivot(index="week", variable_name="chain_sample", value_name="Rt")
+        .with_columns(
+            chain=pl.col("chain_sample")
+            .str.extract(r"(\d+), (\d+)", 1)
+            .cast(pl.Int64),
+            sample=pl.col("chain_sample")
+            .str.extract(r"(\d+), (\d+)", 2)
+            .cast(pl.Int64),
+        )
+        .drop("chain_sample")
     )
-    mse_weekly_rt = np.pow(
-        posterior_weekly_rt.T - true_weekly_rt[: posterior_weekly_rt.shape[0]],
-        2,
-    ).mean(axis=0)
-    alpha = config["bayes"]["ci_alpha"]
-    results = {
-        "convergence": {
-            "min_ess": float(summary["ess_bulk"].min()),
-            "max_psrf": float(summary["r_hat"].max()),
-        },
-        "rt_est": {
-            "lower": np.quantile(
-                posterior_weekly_rt, alpha / 2.0, axis=1
-            ).tolist(),
-            "point": np.median(posterior_weekly_rt, axis=1).tolist(),
-            "upper": np.quantile(
-                posterior_weekly_rt, 1.0 - alpha / 2.0, axis=1
-            ).tolist(),
-        },
-        "rt_error": mse_weekly_rt.to_numpy().tolist(),
-    }
+
+    posterior_weekly_rt.write_parquet(args.outfile[0])
+
+    convergence = summary[["ess_bulk", "ess_tail", "r_hat"]].to_dict()
+    if not config["bayes"]["convergence_report_all"]:
+        convergence = {
+            "ess_bulk": min(list(convergence["ess_bulk"].values())),
+            "ess_tail": min(list(convergence["ess_tail"].values())),
+            "r_hat": max(list(convergence["r_hat"].values())),
+        }
 
     with open(
-        args.outfile,
+        args.outfile[1],
         "w",
     ) as outfile:
-        json.dump(results, outfile)
+        json.dump(convergence, outfile)

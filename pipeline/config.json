@@ -42,6 +42,7 @@
             "init_strategy" : "init_to_sample"
         },
         "ci_alpha" : 0.11,
-        "cores" : 4
+        "cores" : 4,
+        "convergence_report_all" : false
     }
 }

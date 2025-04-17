@@ -35,6 +35,7 @@ flowchart TB
   approx_lag("Approximate lag distribution")
   do_summarize[summarize.py]
   summary{{High-level summaries}}
+  plots{{Figures}}
 
   subgraph Rt
     do_gen_inf[generate_infections.py]
@@ -42,8 +43,6 @@ flowchart TB
     subgraph I0
       do_sim[simulate_data.py]
       infections("Incidence and prevalence")
-      error{{"Rt estimation error"}}
-      do_evaluate[evaluate.py]
 
       subgraph "Lag scale"
         subgraph "Independent replicates"
@@ -51,15 +50,15 @@ flowchart TB
 
           coal_data("Coalescent data")
           posterior("Posterior on Rt")
+          convergence("MCMC convergence report")
 
           coal_data --> do_analyze
           do_analyze --> posterior
+          do_analyze --> convergence
 
         end
 
       do_sim --> coal_data
-      posterior --> do_evaluate
-      do_evaluate --> error
       end
 
     infections --> do_sim
@@ -67,14 +66,15 @@ flowchart TB
 
     do_gen_inf --> infections
   end
+  convergence --> do_summarize
+  posterior --> do_summarize
+  do_summarize --> summary
+  do_summarize --> plots
 
   nextstrain --> do_fit_lag
   do_fit_lag --> approx_lag
   approx_lag --> do_sim
   all_rt_scenarios --> do_gen_inf
-  all_rt_scenarios --> do_evaluate
-
-  error --> do_summarize --> summary
 
   class do_fit_lag script
   class nextstrain input
@@ -82,10 +82,10 @@ flowchart TB
   class do_gen_inf script
   class do_sim script
   class do_analyze script
-  class do_evaluate script
   class do_summarize script
   class error result
   class summary result
+  class plots result
 
   classDef input fill: #00cfcc
   classDef script fill: #356bfb

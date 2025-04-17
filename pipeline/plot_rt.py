@@ -14,4 +14,4 @@ if __name__ == "__main__":
     plt.xlabel("Time (in days)")
     plt.ylabel("Rt")
 
-    plt.savefig(args.outfile)
+    plt.savefig(args.outfile[0])

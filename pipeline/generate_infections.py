@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     prevalence = RenewalCoalescentModel.daily_prevalence(incidence, gen_int)
 
-    with open(args.outfile, "w") as outfile:
+    with open(args.outfile[0], "w") as outfile:
         json.dump(
             {
                 "incidence": incidence.tolist(),

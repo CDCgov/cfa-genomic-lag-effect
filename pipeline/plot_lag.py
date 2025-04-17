@@ -72,4 +72,4 @@ if __name__ == "__main__":
     axs[1, 1].set_ylabel("Approximated quantiles")
     axs[1, 1].set_xlabel("Approximation sample quantiles")
 
-    plt.savefig(args.outfile)
+    plt.savefig(args.outfile[0])

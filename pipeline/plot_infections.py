@@ -24,4 +24,4 @@ if __name__ == "__main__":
     axs[1].set_xlabel("Time (in days)")
     axs[1].set_ylabel("Prevalence")
 
-    plt.savefig(args.outfile)
+    plt.savefig(args.outfile[0])

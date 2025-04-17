@@ -97,5 +97,6 @@ parser.add_argument(
 parser.add_argument(
     "--outfile",
     type=str,
-    help="Output file.",
+    help="Output file(s).",
+    nargs="*",
 )

@@ -112,7 +112,6 @@ rule simulate_data:
 rule analyze:
     input:
         "pipeline/output/coalescent/{scenario}_{i0}_{scaling_factor}_{rep}.json",
-        "pipeline/input/rt/{scenario}.txt",
 
     output:
         "pipeline/output/analysis/{scenario}_{i0}_{scaling_factor}_{rep}.json"

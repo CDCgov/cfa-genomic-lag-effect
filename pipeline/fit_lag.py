@@ -242,5 +242,5 @@ if __name__ == "__main__":
         "coef": coef.tolist(),
     }
 
-    with open(args.outfile, "w") as outfile:
+    with open(args.outfile[0], "w") as outfile:
         json.dump(params, outfile)

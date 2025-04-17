@@ -77,7 +77,7 @@ if __name__ == "__main__":
     data = unlagged_data.as_of(as_of=0.0, lags=lags)
 
     with open(
-        args.outfile,
+        args.outfile[0],
         "w",
     ) as outfile:
         json.dump(data.serialize(), outfile)
