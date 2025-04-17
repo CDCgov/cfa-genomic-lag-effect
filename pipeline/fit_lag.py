@@ -192,7 +192,7 @@ def get_empirical_lag(config) -> NDArray:
         config["empirical_lag"]["date_upper"]["d"],
     )
     df = (
-        pl.scan_csv(config["empirical_lag"]["nextstrain_path"], separator="\t")
+        pl.scan_csv("pipeline/input/metadata.tsv", separator="\t")
         .cast({"date": pl.Date, "date_submitted": pl.Date}, strict=False)
         .filter(
             pl.col("date").is_not_null(),

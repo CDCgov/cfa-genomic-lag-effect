@@ -8,32 +8,116 @@ It consists of a small python package, `lag`, and some associated utilities in `
 ## Getting started
 
 This is a [poetry](https://python-poetry.org/) project with a split codebase.
-The more general (and generalizable) modeling code is in the python package `lag`, which can be installed with `poetry install`.
+The more general (and generalizable) modeling code is in the python package `lag`.
 The simulation study also uses more special-purpose code (e.g., for approximating observed distributions of reporting lags), which live as callable python scripts in `pipeline/`.
+The package all dependencies required to run the simulations can be installed with `poetry install`.
 
-The pipeline is implemented in [snakemake](https://snakemake.github.io/) (which will also be installed with `poetry install`).
-To run the pipeline, you will need to:
-1. Download and uncompress Nextstrain's open [metadata.tsv](https://docs.nextstrain.org/projects/ncov/en/latest/reference/remote_inputs.html) for SARS-CoV-2. It can be placed anywhere.
-2. Create `scripts/config.json` by copying `scripts/example_config.json` and amending the `nextstrain_path` argument to point to (1).
-3. `poetry run snakemake` (using the ` -j1` flag is recommended when using multiple chains in NumPyro).
+## Simulation study
 
-Running the pipeline will take some time, as 100 replicate datasets are simulated and analyzed for each combination of:
-- 3 $R_t$ trends: a scenario with no trend where $R_t \approx 1$ for the entire time period of interest, a scenario where $R_t$ decreases in the most recent months, and a scenario where $R_t$ increases in the most recent months.
-- 3 initial counts of incident infections: 1,000, 2,000, and 4,000.
-- 5 distributions on the lag between sample collection and sequence availability. First, we obtain $\hat{f}(\ell)$, a [spline-based approximation](https://www.sciencedirect.com/science/article/pii/S0377042724003807) to the empirical probability density function of lags $\ell$ in the Nextstrain open data from 2020 to 2025. Then when simulating data we use $g(\ell) = k \ell$ for $k \in \{0, 1/4, 1/2, 3/4, 1\}$ to interpolate between a regime of instantaneous data availability and current reality.
+The simulations are designed to examine how longer and shorter average lag (the reporting delay between a sample being collected and the sequence being available for analysis) impacts the utility of genomic data for real-time epidemiological inference.
+
+The inference target is $R\_t$, with the link between $R\_t$ and genomic data given by a renewal coalescent model.
+The distribution of lags is based on those observed in genomic data for SARS-CoV-2, with shorter hypothetical distributions obtained by scale transformations of a [spline-based approximation](https://www.sciencedirect.com/science/article/pii/S0377042724003807) to the empirical probability density function $\hat{f}$.
+Coalescent models are informed by the times of common ancestry of the genomic sequences, and the distribution of these times is sensitive to incidence, prevalence, and trends therein (and thus $R\_t$).
+To account for some measure of these effects, simulations are performed for several $R\_t$ trajectories as well as several magnitudes of initial incidence $I\_0$.
+
+The following diagram describes the simulation study pipeline, with nested plates showing how the grid of true $R\_t$, $I\_0$, and lag scaling factors is handled.
+Note that all python scripts have settings configurable via `pipeline/config.json`, including to define the grid of true parameter values.
+Inputs are teal, pipeline scripts blue, results orange, and all other elements are intermediate inputs/outputs.
+
+```mermaid
+
+flowchart TB
+
+  nextstrain([metadata.tsv])
+  all_rt_scenarios(["Rt scenarios"])
+  do_fit_lag[fit_lag.py]
+  approx_lag("Approximate lag distribution")
+  do_summarize[summarize.py]
+  summary{{High-level summaries}}
+
+  subgraph Rt
+    do_gen_inf[generate_infections.py]
+
+    subgraph I0
+      do_sim[simulate_data.py]
+      infections("Incidence and prevalence")
+      error{{"Rt estimation error"}}
+      do_evaluate[evaluate.py]
+
+      subgraph "Lag scale"
+        subgraph "Independent replicates"
+          do_analyze[analyze.py]
+
+          coal_data("Coalescent data")
+          posterior("Posterior on Rt")
+
+          coal_data --> do_analyze
+          do_analyze --> posterior
+
+        end
+
+      do_sim --> coal_data
+      posterior --> do_evaluate
+      do_evaluate --> error
+      end
+
+    infections --> do_sim
+    end
+
+    do_gen_inf --> infections
+  end
+
+  nextstrain --> do_fit_lag
+  do_fit_lag --> approx_lag
+  approx_lag --> do_sim
+  all_rt_scenarios --> do_gen_inf
+  all_rt_scenarios --> do_evaluate
+
+  error --> do_summarize --> summary
+
+  class do_fit_lag script
+  class nextstrain input
+  class all_rt_scenarios input
+  class do_gen_inf script
+  class do_sim script
+  class do_analyze script
+  class do_evaluate script
+  class do_summarize script
+  class error result
+  class summary result
+
+  classDef input fill: #00cfcc
+  classDef script fill: #356bfb
+  classDef result fill: #ff9349
+```
+
+### Running the pipeline
+
+The pipeline is implemented in [snakemake](https://snakemake.github.io/), which will also be installed with `poetry install`.
+The pipeline requires two inputs:
+- Nextstrain's open [metadata.tsv](https://docs.nextstrain.org/projects/ncov/en/latest/reference/remote_inputs.html) for SARS-CoV-2, as `pipeline/input/metadata.tsv`
+- $R\_t$ time series, taken to be values of a weekly piecewise-constant function, in `pipeline/input/rt`, as plain text with one line per week (forward in time).
+
+Running `poetry run sh pipeline/setup.sh` will result in the requisite Nextstrain data being downloaded and uncompressed as well as the generation of three suitable $R\_t$ time series.
+
+With these inputs in place:
+- Create the pipeline config file via `cp scripts/example_config.json scripts/config.json` .
+- Run the pipeline via `poetry run snakemake -j1` (this flag keeps snakemake from conflicting with NumPyro and polars on core and memory usage).
+
 
 ### Visualizing the simulated scenarios
 
 The command `poetry run snakemake diagnostics` will produce plots showing:
-- The 3 $R_t$ scenarios (in `pipeline/out/rt/`).
-- The 9 pairs of incidence and prevalence curves resulting from each $R_t$ scenario and initial incident infection count (in `pipeline/out/infections/`).
-- The scaled lag distributions (in `pipeline/out/lag/`) each a multi-panel plot showing
+- The 3 $R_t$ scenarios (in `pipeline/output/rt/`).
+- The 9 pairs of incidence and prevalence curves resulting from each $R_t$ scenario and initial incident infection count (in `pipeline/output/infections/`).
+- The scaled lag distributions (in `pipeline/output/lag/`) each a multi-panel plot showing
   - The probability density function (minus the long upper 5\% tail).
   - The cumulative distribution function (for the entire distribution).
   - A comparison of the approximating distribution to the samples on which it was fit.
   - A comparison of samples of the approximation to the approximation itself.
 
-Note that if snakemake has not yet been called, this will run some of the preliminary pipeline steps.
+Note that if snakemake has not yet been called, this will run pipeline steps prior to `analyze.py`.
 
 ## Project Admin
 

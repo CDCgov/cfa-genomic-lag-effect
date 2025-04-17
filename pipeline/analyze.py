@@ -16,6 +16,8 @@ if __name__ == "__main__":
         numpyro.infer, "init_to_sample"
     )
 
+    numpyro.set_host_device_count(config["bayes"]["cores"])
+
     with open(args.infile[0], "r") as file:
         coal_dict = json.load(file)
 

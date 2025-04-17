@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 from typing import Optional
 
 
@@ -13,12 +14,17 @@ def construct_seed(
     """
     Allows for consistent and unique seeds across parameter grid
     """
-    scenario_to_int = {
-        None: "0",
-        "decreasing": "1",
-        "notrend": "2",
-        "increasing": "3",
+    scenario_hash_file = "pipeline/output/rt/hash.json"
+    assert os.path.isfile(
+        scenario_hash_file
+    ), f"Cannot construct seed without {scenario_hash_file}"
+    with open(scenario_hash_file, "r") as file:
+        scenario_hash = json.load(file)
+
+    scenario_to_int = {None: "0"} | {
+        k: str(v + 1) for k, v in scenario_hash.items()
     }
+
     i0_to_int = {
         None: "0",
         "1000": "1",
@@ -36,7 +42,7 @@ def construct_seed(
     rep_str = "0" if rep is None else str(int(rep) + 1)
     return int(
         str(root_seed)
-        + scenario_to_int[scenario]
+        + scenario_to_int[scenario]  # type: ignore
         + i0_to_int[i0]
         + scale_to_int[scaling_factor]
         + rep_str

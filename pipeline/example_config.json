@@ -1,7 +1,6 @@
 {
     "seed" : 42,
     "empirical_lag" : {
-        "nextstrain_path" : "path/to/nextstrain's/metadata.tsv",
         "date_lower" : {
             "y" : 2020,
             "m" : 1,
@@ -25,14 +24,6 @@
             "n_sampled_weeks" : 12
         },
         "n_rep" : 3,
-        "n_init_weeks" : 36,
-        "n_change_weeks" : 16,
-        "r_low" : 0.9,
-        "r_med" : 1.0,
-        "r_high" : 1.1,
-        "r_sd" : 0.01,
-        "r_ac" : 0.5,
-        "rt_scenarios" : ["decreasing", "notrend", "increasing"],
         "i0" : [1000, 2000, 4000]
     },
     "renewal" : {
@@ -43,13 +34,14 @@
     },
     "bayes" : {
         "mcmc" : {
-            "num_warmup" : 100,
-            "num_samples" : 100,
-            "num_chains" : 1
+            "num_warmup" : 25,
+            "num_samples" : 25,
+            "num_chains" : 4
         },
         "nuts" : {
             "init_strategy" : "init_to_sample"
         },
-        "ci_alpha" : 0.11
+        "ci_alpha" : 0.11,
+        "cores" : 1
     }
 }

@@ -1,7 +1,5 @@
 import numpy as np
 
-from pipeline.utils import construct_seed, parser, read_config
-
 
 def ar1(
     mu: np.typing.NDArray,
@@ -47,40 +45,24 @@ def generate_rt_scenario(
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-    config = read_config(args.config)
-
-    rt_scenarios = {
-        "decreasing": (
-            config["simulations"]["r_med"],
-            config["simulations"]["r_low"],
-        ),
-        "notrend": (
-            config["simulations"]["r_med"],
-            config["simulations"]["r_med"],
-        ),
-        "increasing": (
-            config["simulations"]["r_med"],
-            config["simulations"]["r_high"],
-        ),
-    }
-
-    seed = construct_seed(
-        config["seed"],
-        scenario=args.scenario,
-        i0=None,
-        scaling_factor=None,
-        rep=None,
-    )
-    weekly_rt = generate_rt_scenario(
-        rt_scenarios[args.scenario][0],
-        rt_scenarios[args.scenario][1],
-        config["simulations"]["n_init_weeks"],
-        config["simulations"]["n_change_weeks"],
-        config["simulations"]["r_sd"],
-        config["simulations"]["r_ac"],
-        np.random.default_rng(seed),
+    rt_scenarios = (
+        ("decreasing", 42, 1.0, 0.9),
+        ("increasing", 43, 1.0, 1.1),
+        ("notrend", 44, 1.0, 1.0),
     )
 
-    with open(args.outfile, "w") as outfile:
-        outfile.write("\n".join([str(rt) for rt in weekly_rt]))
+    for i in range(len(rt_scenarios)):
+        weekly_rt = generate_rt_scenario(
+            rt_scenarios[i][2],
+            rt_scenarios[i][3],
+            36,
+            16,
+            0.01,
+            0.5,
+            np.random.default_rng(1),
+        )
+
+        with open(
+            f"pipeline/input/rt/{rt_scenarios[i][0]}.txt", "w"
+        ) as outfile:
+            outfile.write("\n".join([str(rt) for rt in weekly_rt]))

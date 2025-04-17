@@ -41,20 +41,21 @@ if __name__ == "__main__":
     )
     rng = np.random.default_rng(seed)
 
-    n_weeks = (
-        config["simulations"]["n_init_weeks"]
-        + config["simulations"]["n_change_weeks"]
-    )
-    rate_shift_times = np.arange(1, n_weeks * 7)
-    n_days = rate_shift_times.shape[0] + 1
+    with open(args.infile[0], "r") as infile:
+        infections = json.load(infile)
+        incidence = np.array(infections["incidence"])
+        prevalence = np.array(infections["prevalence"])
 
-    backwards_incidence = np.flip(np.loadtxt(args.infile[0]))[:n_days]
-    backwards_prevalence = np.flip(np.loadtxt(args.infile[1]))[:n_days]
+    n_days = prevalence.shape[0] - 1
+    rate_shift_times = np.arange(1, n_days)
 
-    with open(args.infile[2], "r") as file:
+    backwards_incidence = np.flip(incidence)[:n_days]
+    backwards_prevalence = np.flip(prevalence)[:n_days]
+
+    with open(args.infile[1], "r") as file:
         lag_params = json.load(file)
 
-    lag_dist = BHSQI(**lag_params)
+    lag_dist = BHSQI(**{k: np.array(v) for k, v in lag_params.items()})
 
     samp_times = simulate_sampling_times(
         config["simulations"]["sampling"]["weekday_effect"],
