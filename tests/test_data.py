@@ -111,3 +111,9 @@ def test_lag(four_tip):
     )
     assert (varying_lag.coalescent_times == np.array([3.5, 5.5])).all()
     assert (varying_lag.sampling_times == np.array([0, 3, 5])).all()
+
+
+def test_serialize(four_tip):
+    unserialized = data.CoalescentData.unserialize(four_tip.serialize())
+
+    assert (unserialized.intervals == four_tip.intervals).all()

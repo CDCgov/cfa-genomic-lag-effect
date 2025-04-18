@@ -6,12 +6,12 @@ authors = ["afmagee42 <rzg0@cdc.gov>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.12"
 numpy = "^2.2.3"
 numpyro = "^0.17.0"
 jax = "^0.5.2"
-typing-extensions = "^4.12.2"
 dendropy = "^5.0.1"
+arviz = "^0.21.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -19,6 +19,7 @@ pytest = "^8.3.4"
 scipy = "^1.15.2"
 polars = "^1.25.2"
 matplotlib = "^3.10.1"
+snakemake = "^9.1.9"
 
 [build-system]
 requires = ["poetry-core"]
