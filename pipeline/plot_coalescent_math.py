@@ -1,3 +1,5 @@
+import json
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -31,13 +33,12 @@ if __name__ == "__main__":
 
     gen_int = len(config["renewal"]["infectious_profile"])
 
-    n_days = 7 * (
-        config["simulations"]["n_init_weeks"]
-        + config["simulations"]["n_change_weeks"]
-    )
+    with open(args.infile[0], "r") as infile:
+        infections = json.load(infile)
+        incidence = np.array(infections["incidence"])
+        prevalence = np.array(infections["prevalence"])
 
-    incidence = np.loadtxt(args.infile[0])
-    prevalence = np.loadtxt(args.infile[1])
+    n_days = prevalence.shape[0] - 2
 
     incidence = np.flip(incidence)[: prevalence.shape[0]]
     prevalence = np.flip(prevalence)
@@ -71,4 +72,4 @@ if __name__ == "__main__":
 
     axs[3].set_xlabel("Time before present (in days)")
 
-    plt.savefig(args.outfile)
+    plt.savefig(args.outfile[0])

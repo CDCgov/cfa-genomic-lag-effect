@@ -25,7 +25,7 @@ rule diagnostics:
             i0=config["simulations"]["i0"],
         ),
         expand(
-            "pipeline/out/infections/{scenario}_{i0}.png",
+            "pipeline/output/infections/{scenario}_{i0}.png",
             scenario=scenario_list,
             i0=config["simulations"]["i0"],
         ),
@@ -86,11 +86,10 @@ rule plot_infection_diagnostics:
 
 rule plot_coalescent_math_diagnostics:
     input:
-        "pipeline/out/infections/incidence_{scenario}_{i0}.txt",
-        "pipeline/out/infections/prevalence_{scenario}_{i0}.txt",
+        "pipeline/output/infections/{scenario}_{i0}.json"
 
     output:
-        "pipeline/out/coalescent/{scenario}_{i0}.png"
+        "pipeline/output/coalescent/{scenario}_{i0}.png"
 
     shell:
         "python3 -m pipeline.plot_coalescent_math --config pipeline/config.json --infile {input} --outfile {output}"
