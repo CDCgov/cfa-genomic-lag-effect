@@ -10,7 +10,7 @@ scenario_list = glob_wildcards("pipeline/input/rt/{scenario}.txt").scenario
 rule all:
     input:
         expand(
-            "pipeline/output/analysis/{scenario}_{i0}_{scaling_factor}_{rep}.json",
+            "pipeline/output/analysis/rt_{scenario}_{i0}_{scaling_factor}_{rep}.parquet",
             scenario=scenario_list,
             i0=config["simulations"]["i0"],
             scaling_factor=config["empirical_lag"]["scaling_factors"],
@@ -114,7 +114,21 @@ rule analyze:
         "pipeline/output/coalescent/{scenario}_{i0}_{scaling_factor}_{rep}.json",
 
     output:
-        "pipeline/output/analysis/{scenario}_{i0}_{scaling_factor}_{rep}.json"
+        "pipeline/output/analysis/rt_{scenario}_{i0}_{scaling_factor}_{rep}.parquet",
+        "pipeline/output/analysis/convergence_{scenario}_{i0}_{scaling_factor}_{rep}.json",
 
     shell:
         "python3 -m pipeline.analyze --config pipeline/config.json --infile {input} --outfile {output}"
+
+rule summarize:
+    input:
+        directory("pipeline/output/analysis"),
+        "pipeline/output/rt/hash.json",
+
+    output:
+        "pipeline/output/results.parquet",
+        "pipeline/output/rt_est.png",
+        "pipeline/output/rt_error.png",
+
+    shell:
+        "python3 -m pipeline.summarize --config pipeline/config.json"

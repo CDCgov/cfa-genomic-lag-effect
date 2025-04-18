@@ -14,7 +14,7 @@
         "n_steps" : 500,
         "low" : 0.0,
         "high" : null,
-        "scaling_factors" : [0.0, 0.25, 0.5, 0.75, 1.0]
+        "scaling_factors" : [0.0]
     },
     "simulations" : {
         "sampling" : {
@@ -24,7 +24,7 @@
             "n_sampled_weeks" : 12
         },
         "n_rep" : 3,
-        "i0" : [1000, 2000, 4000]
+        "i0" : [1000]
     },
     "renewal" : {
         "comments" : ["Infectious distribution is generation_interval.csv from https://github.com/cdcent/cfa-forecast-renewal-ww/tree/main/input/saved_pmfs as of 6096f8f0"],
