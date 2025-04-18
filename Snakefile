@@ -124,6 +124,17 @@ rule simulate_data:
     shell:
         "python3 -m pipeline.simulate_data --config pipeline/config.json --scenario {wildcards.scenario} --i0 {wildcards.i0} --scaling_factor {wildcards.scaling_factor} --rep {wildcards.rep} --infile {input} --outfile {output}"
 
+rule plot_coalescent_diagnostic:
+    input:
+        "pipeline/output/infections/{scenario}_{i0}.json",
+        directory("pipeline/output/coalescent"),
+
+    output:
+        "pipeline/output/coalescent/{scenario}_{i0}_{scaling_factor}.png"
+
+    shell:
+        "python3 -m pipeline.plot_coalescent_rate --config pipeline/config.json --scenario {wildcards.scenario} --i0 {wildcards.i0} --scaling_factor {wildcards.scaling_factor} --infile {input} --outfile {output}"
+
 rule analyze:
     input:
         "pipeline/output/coalescent/{scenario}_{i0}_{scaling_factor}_{rep}.json",
