@@ -92,11 +92,13 @@ class RenewalCoalescentModel(RtModel):
     @staticmethod
     def approx_squared_prevalence(prevalence):
         prev_diff = jnp.diff(prevalence)
-        prev_cubed = jnp.pow(prevalence[:-1], 3.0)
         return jnp.where(
             prev_diff == 0.0,
-            prev_cubed,
-            (jnp.pow(prevalence[:-1] + jnp.diff(prevalence), 3.0) - prev_cubed)
+            jnp.pow(prevalence[:-1], 2.0),
+            (
+                jnp.pow(prevalence[:-1] + jnp.diff(prevalence), 3.0)
+                - jnp.pow(prevalence[:-1], 3.0)
+            )
             / (3.0 * prev_diff),
         )
 
