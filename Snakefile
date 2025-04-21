@@ -154,15 +154,15 @@ rule analyze:
     shell:
         "python3 -m pipeline.analyze --config pipeline/config.json --infile {input} --outfile {output}"
 
-# rule summarize:
-#     input:
-#         directory("pipeline/output/analysis"),
-#         "pipeline/output/rt/hash.json",
+rule summarize:
+    input:
+        directory("pipeline/output/analysis"),
+        "pipeline/output/rt/hash.json",
 
-#     output:
-#         "pipeline/output/results.parquet",
-#         "pipeline/output/rt_est.png",
-#         "pipeline/output/rt_error.png",
+    output:
+        "pipeline/output/results.parquet",
+        "pipeline/output/rt_est.png",
+        "pipeline/output/rt_error.png",
 
-#     shell:
-#         "python3 -m pipeline.summarize --config pipeline/config.json"
+    shell:
+        "python3 -m pipeline.summarize --config pipeline/config.json"
