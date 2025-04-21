@@ -23,4 +23,6 @@ where:
 
 Details about the coalescent likelihood used here, as well as the renewal model, are available in the [model document](model.md).
 
+The pipeline used for a simulation study of the effect of lag on $R_t$ estimation is provided in the [pipeline document](pipeline.md).
+
 There is also an [API reference](api.md) for the python code which implements this model.

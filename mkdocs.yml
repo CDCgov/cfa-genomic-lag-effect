@@ -3,6 +3,7 @@ site_name: cfa-genomic-lag-effect
 nav:
   - index.md
   - renewal_coalescent_math.md
+  - pipeline.md
   - api.md
 
 theme:
@@ -35,6 +36,15 @@ markdown_extensions:
       generic: true
   - pymdownx.superfences:
       custom_fences:
+        - name: math
+          class: arithmatex
+          format:
+            !!python/object/apply:pymdownx.arithmatex.arithmatex_fenced_format {
+              kwds: { mode: generic, tag: div },
+            }
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
         - name: math
           class: arithmatex
           format:
