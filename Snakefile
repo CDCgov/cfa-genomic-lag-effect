@@ -1,8 +1,6 @@
 import json
 import os
 
-import numpy as np
-
 configfile: "pipeline/config.json"
 
 scenario_list = glob_wildcards("pipeline/input/rt/{scenario}.txt").scenario
@@ -14,7 +12,7 @@ rule all:
             scenario=scenario_list,
             i0=config["simulations"]["i0"],
             scaling_factor=config["empirical_lag"]["scaling_factors"],
-            rep=np.arange(config["simulations"]["n_rep"])
+            rep=list(range(config["simulations"]["n_rep"]))
         )
 
 rule diagnostics:
@@ -37,6 +35,12 @@ rule diagnostics:
             "pipeline/output/lag/{scaling_factor}.png",
             scaling_factor=config["empirical_lag"]["scaling_factors"],
         ),
+        expand(
+            "pipeline/output/coalescent/{scenario}_{i0}_{scaling_factor}.png",
+            scenario=scenario_list,
+            i0=config["simulations"]["i0"],
+            scaling_factor=config["empirical_lag"]["scaling_factors"],
+        )
 
 rule hash_scenarios:
     output:
@@ -127,7 +131,11 @@ rule simulate_data:
 rule plot_coalescent_diagnostic:
     input:
         "pipeline/output/infections/{scenario}_{i0}.json",
-        directory("pipeline/output/coalescent"),
+        expand(
+            "pipeline/output/coalescent/{scenario}_{i0}_{scaling_factor}_{rep}.json",
+            rep=list(range(config["simulations"]["n_rep"])),
+            allow_missing=True,
+        )
 
     output:
         "pipeline/output/coalescent/{scenario}_{i0}_{scaling_factor}.png"
@@ -146,15 +154,15 @@ rule analyze:
     shell:
         "python3 -m pipeline.analyze --config pipeline/config.json --infile {input} --outfile {output}"
 
-rule summarize:
-    input:
-        directory("pipeline/output/analysis"),
-        "pipeline/output/rt/hash.json",
+# rule summarize:
+#     input:
+#         directory("pipeline/output/analysis"),
+#         "pipeline/output/rt/hash.json",
 
-    output:
-        "pipeline/output/results.parquet",
-        "pipeline/output/rt_est.png",
-        "pipeline/output/rt_error.png",
+#     output:
+#         "pipeline/output/results.parquet",
+#         "pipeline/output/rt_est.png",
+#         "pipeline/output/rt_error.png",
 
-    shell:
-        "python3 -m pipeline.summarize --config pipeline/config.json"
+#     shell:
+#         "python3 -m pipeline.summarize --config pipeline/config.json"
