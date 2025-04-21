@@ -68,10 +68,10 @@ if __name__ == "__main__":
     axs[1].set_ylabel("Prevalence")
 
     axs[2].scatter(np.arange(n_days - 1), coalescent_counts, marker=".")
-    axs[2].set_ylabel(f"Number of coalescent events (in {n_rep} simulations)")
+    axs[2].set_ylabel("Mean daily coalescents")
 
     axs[3].scatter(np.arange(n_days - 1), sampling_counts, marker=".")
-    axs[3].set_ylabel(f"Number of coalescent events (in {n_rep} simulations)")
+    axs[3].set_ylabel("Mean daily samples")
 
     axs[3].set_xlabel("Time before present (in days)")
 

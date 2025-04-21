@@ -69,10 +69,10 @@ def test_model_runs():
 
 
 def test_sim_runs():
-    _ = RenewalCoalescentModel.simulate_coalescent_times(
+    _ = RenewalCoalescentModel.simulate_approx_coalescent_times(
         sampling_times=np.arange(5, 10) + 0.5,
         rate_shift_times=np.arange(19),
         force_of_infection=np.array([1] * 20),
-        prevalence=np.arange(1, 21),
+        approx_squared_prevalence=np.arange(1, 21),
         rng=np.random.default_rng(0),
     )

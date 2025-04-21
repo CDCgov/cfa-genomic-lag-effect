@@ -91,10 +91,14 @@ class RenewalCoalescentModel(RtModel):
 
     @staticmethod
     def approx_squared_prevalence(prevalence):
-        return (
-            jnp.pow(prevalence[:-1] + jnp.diff(prevalence), 3.0)
-            - jnp.pow(prevalence[:-1], 3.0)
-        ) / (3.0 * jnp.diff(prevalence))
+        prev_diff = jnp.diff(prevalence)
+        prev_cubed = jnp.pow(prevalence[:-1], 3.0)
+        return jnp.where(
+            prev_diff == 0.0,
+            prev_cubed,
+            (jnp.pow(prevalence[:-1] + jnp.diff(prevalence), 3.0) - prev_cubed)
+            / (3.0 * prev_diff),
+        )
 
     @staticmethod
     def approx_coalescent_rate(
@@ -141,11 +145,10 @@ class RenewalCoalescentModel(RtModel):
         given the piecewise constant force of infection and approximated piecewise constant squared prevalence.
         """
 
-        rate = (
-            intervals.num_active_choose_2
-            * 2.0
-            * force_of_infection[intervals.rate_indexer]
-            / approx_squared_prevalence[intervals.rate_indexer]
+        rate = RenewalCoalescentModel.approx_coalescent_rate(
+            approx_squared_prevalence[intervals.rate_indexer],
+            intervals.num_active_choose_2,
+            force_of_infection[intervals.rate_indexer],
         )
         lnl = rate * intervals.dt - jnp.where(
             intervals.ends_in_coalescent_indicator, jnp.log(rate), 0.0
@@ -184,11 +187,11 @@ class RenewalCoalescentModel(RtModel):
 
     @staticmethod
     @np.errstate(divide="ignore")
-    def simulate_coalescent_times(
+    def simulate_approx_coalescent_times(
         sampling_times: NDArray,
         rate_shift_times: NDArray,
         force_of_infection: NDArray,
-        prevalence: NDArray,
+        approx_squared_prevalence: NDArray,
         rng=np.random.default_rng(),
     ) -> CoalescentData:
         """
@@ -199,8 +202,8 @@ class RenewalCoalescentModel(RtModel):
             rate_shift_times.shape[0] == force_of_infection.shape[0] - 1
         ), f"There are {rate_shift_times.shape[0]} rate shift times, expected {rate_shift_times.shape[0] + 1} `force_of_infection` and `prevalence entries`."
         assert (
-            force_of_infection.shape[0] == prevalence.shape[0]
-        ), f"Provided force_of_infection is length {force_of_infection.shape[0]} while provided prevalence is length {prevalence.shape[0]}"
+            force_of_infection.shape[0] == approx_squared_prevalence.shape[0]
+        ), f"Provided force_of_infection is length {force_of_infection.shape[0]} while provided prevalence is length {approx_squared_prevalence.shape[0]}"
         rate_times = np.concat(
             (
                 np.sort(rate_shift_times),
@@ -221,24 +224,26 @@ class RenewalCoalescentModel(RtModel):
         n_active = 0
         coalescent_times = []
         rate_inv = 1.0 / RenewalCoalescentModel.approx_coalescent_rate(
-            prevalence[rate_idx], n_active, force_of_infection[rate_idx]
+            approx_squared_prevalence[rate_idx],
+            n_active,
+            force_of_infection[rate_idx],
         )
         while len(coalescent_times) < n_coal:
             wt = rng.exponential(rate_inv)
 
-            if time + wt > rate_times[rate_idx]:
-                time = rate_times[rate_idx]
-                rate_idx += 1
-            elif time + wt > samp_times[sample_idx]:
+            if time + wt > samp_times[sample_idx]:
                 time = samp_times[sample_idx]
                 sample_idx += 1
                 n_active += 1
+            elif time + wt > rate_times[rate_idx]:
+                time = rate_times[rate_idx]
+                rate_idx += 1
             else:
                 time += wt
                 coalescent_times.append(time)
                 n_active -= 1
             rate_inv = 1.0 / RenewalCoalescentModel.approx_coalescent_rate(
-                prevalence[rate_idx],
+                approx_squared_prevalence[rate_idx],
                 n_active,
                 force_of_infection[rate_idx],
             )
