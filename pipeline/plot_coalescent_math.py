@@ -50,8 +50,8 @@ if __name__ == "__main__":
 
     unit_coal_rate = RenewalCoalescentModel.approx_coalescent_rate(
         RenewalCoalescentModel.approx_squared_prevalence(prevalence),
-        2,
         incidence[:-1],
+        np.repeat(1, incidence.shape[0]),
     )
 
     fig, axs = plt.subplots(4, 1, figsize=(6, 12))

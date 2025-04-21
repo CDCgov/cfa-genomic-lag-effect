@@ -102,13 +102,10 @@ class RenewalCoalescentModel(RtModel):
 
     @staticmethod
     def approx_coalescent_rate(
-        approx_squared_prevalence, n_active, force_of_infection
+        approx_squared_prevalence, force_of_infection, n_active_choose_2
     ):
         return (
-            choose2(n_active)
-            * 2.0
-            * force_of_infection
-            / approx_squared_prevalence
+            n_active_choose_2 * force_of_infection / approx_squared_prevalence
         )
 
     @staticmethod
@@ -147,8 +144,8 @@ class RenewalCoalescentModel(RtModel):
 
         rate = RenewalCoalescentModel.approx_coalescent_rate(
             approx_squared_prevalence[intervals.rate_indexer],
-            intervals.num_active_choose_2,
             force_of_infection[intervals.rate_indexer],
+            intervals.num_active_choose_2,
         )
         lnl = rate * intervals.dt - jnp.where(
             intervals.ends_in_coalescent_indicator, jnp.log(rate), 0.0
@@ -225,8 +222,8 @@ class RenewalCoalescentModel(RtModel):
         coalescent_times = []
         rate_inv = 1.0 / RenewalCoalescentModel.approx_coalescent_rate(
             approx_squared_prevalence[rate_idx],
-            n_active,
             force_of_infection[rate_idx],
+            choose2(n_active),
         )
         while len(coalescent_times) < n_coal:
             wt = rng.exponential(rate_inv)
@@ -244,8 +241,8 @@ class RenewalCoalescentModel(RtModel):
                 n_active -= 1
             rate_inv = 1.0 / RenewalCoalescentModel.approx_coalescent_rate(
                 approx_squared_prevalence[rate_idx],
-                n_active,
                 force_of_infection[rate_idx],
+                choose2(n_active),
             )
 
         return CoalescentData(
