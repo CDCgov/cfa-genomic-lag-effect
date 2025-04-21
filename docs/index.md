@@ -10,6 +10,7 @@ At a high level, our model is
 \end{align*}
 ```
 where:
+
 - We sweep other parameters into $\boldsymbol{\theta}$ for readability
 - $R(t)$ is the time-varying reproduction number
 - $I(t)$ is the incidence, which is a deterministic transformation governed by
