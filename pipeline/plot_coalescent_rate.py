@@ -23,7 +23,7 @@ def count_events(n_days, key, scenario, i0, scaling_factor, n_rep):
             data = json.load(infile)[key]
         counts[rep, :] = np.histogram(data, bins=grid)[0]
 
-    return counts.sum(axis=0)
+    return counts.sum(axis=0) / n_rep
 
 
 if __name__ == "__main__":
