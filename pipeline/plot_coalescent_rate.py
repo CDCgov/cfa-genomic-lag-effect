@@ -1,5 +1,4 @@
 import json
-import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,21 +6,14 @@ import numpy as np
 from pipeline.utils import parser, read_config
 
 
-def count_events(n_days, key, scenario, i0, scaling_factor, n_rep):
+def count_events(files, n_days, key) -> np.typing.NDArray:
     grid = np.arange(n_days)
+    n_rep = len(files)
     counts = np.zeros((n_rep, n_days - 1))
-    for rep in range(n_rep):
-        with open(
-            os.path.join(
-                "pipeline",
-                "output",
-                "coalescent",
-                f"{scenario}_{i0}_{scaling_factor}_{rep}.json",
-            ),
-            "r",
-        ) as infile:
-            data = json.load(infile)[key]
-        counts[rep, :] = np.histogram(data, bins=grid)[0]
+    for i, file in enumerate(files):
+        with open(file, "r") as f:
+            data = json.load(f)[key]
+        counts[i, :] = np.histogram(data, bins=grid)[0]
 
     return counts.sum(axis=0) / n_rep
 
@@ -43,23 +35,18 @@ if __name__ == "__main__":
     n_days = prevalence.shape[0] - 2
 
     coalescent_counts = count_events(
+        args.infile[1:],
         n_days,
         "coalescent_times",
-        args.scenario,
-        args.i0,
-        args.scaling_factor,
-        n_rep,
-    )
-    sampling_counts = count_events(
-        n_days,
-        "sampling_times",
-        args.scenario,
-        args.i0,
-        args.scaling_factor,
-        n_rep,
     )
 
-    fig, axs = plt.subplots(4, 1, figsize=(6, 12))
+    sampling_counts = count_events(
+        args.infile[1:],
+        n_days,
+        "sampling_times",
+    )
+
+    fig, axs = plt.subplots(5, 1, figsize=(6, 15))
 
     axs[0].scatter(np.arange(n_days), incidence[:n_days], marker=".")
     axs[0].set_ylabel("Incidence")
@@ -70,9 +57,16 @@ if __name__ == "__main__":
     axs[2].scatter(np.arange(n_days - 1), coalescent_counts, marker=".")
     axs[2].set_ylabel("Mean daily coalescents")
 
-    axs[3].scatter(np.arange(n_days - 1), sampling_counts, marker=".")
-    axs[3].set_ylabel("Mean daily samples")
+    axs[3].scatter(
+        np.arange(n_days - 1),
+        coalescent_counts.cumsum() / coalescent_counts.sum(),
+        marker=".",
+    )
+    axs[3].set_ylabel("Mean cumulative proportion of coalescents")
 
-    axs[3].set_xlabel("Time before present (in days)")
+    axs[4].scatter(np.arange(n_days - 1), sampling_counts, marker=".")
+    axs[4].set_ylabel("Mean daily samples")
+
+    axs[4].set_xlabel("Time before present (in days)")
 
     plt.savefig(args.outfile[0])
