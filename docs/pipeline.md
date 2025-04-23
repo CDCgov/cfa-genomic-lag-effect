@@ -11,6 +11,12 @@ The following diagram describes the simulation study pipeline, with nested plate
 Note that all python scripts have settings configurable via `pipeline/config.json`, including to define the grid of true parameter values.
 Inputs are teal, pipeline scripts blue, results orange, and all other elements are intermediate inputs/outputs.
 
+Note that not all simulations have identical amounts of data.
+Samples for the coalescent process are taken over a [specified number of weeks](#configurable-settings) before the forecast date.
+Sample lag means that many of these, and in particular the more recent samples, will not be available.
+That is, the effect of delay is to _remove_ rather than _shift_ sampling times, and the specified number of samples is not the number of _sequences_ available on the forecast date.
+As lags are sampled randomly, a simulation with a lag scaling factor $> 0$ will have a smaller number of sequences available.
+
 ```mermaid
 
 flowchart TB
@@ -125,7 +131,7 @@ The [diagnostic plots](#visualizing-the-simulated-scenarios) are intended to hel
 - `simulations`
   - `sampling`: controls coalescent sampling (tip times)
     - `weekday_effect`: provides the per-week-day proportion of samples taken in a week
-    - `n_samples`: number of samples taken
+    - `n_samples`: number of samples taken, not necessarily [the number of samples available for inference](#simulation-study-pipeline)
     - `n_sampled_weeks`: samples will be taken over this many weeks
   - `n_rep`: number of replicate simulations per combination of $R_t$, $I_0$, lag scaling factor
   - `i0`: a vector of initial incidence values
