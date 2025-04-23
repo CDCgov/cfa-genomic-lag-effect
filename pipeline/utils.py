@@ -26,8 +26,13 @@ def construct_seed(
         k: str(v + 1) for k, v in scenario_hash.items()
     }
 
-    i0_to_int = {None: "0"} | {str(x) : str(i) for i,x in enumerate(config["simulations"]["i0"])}
-    scale_to_int = {None: "0"} | {str(x) : str(i) for i,x in enumerate(config["empirical_lag"]["scaling_factors"])}
+    i0_to_int = {None: "0"} | {
+        str(x): str(i) for i, x in enumerate(config["simulations"]["i0"])
+    }
+    scale_to_int = {None: "0"} | {
+        str(x): str(i)
+        for i, x in enumerate(config["empirical_lag"]["scaling_factors"])
+    }
     rep_str = "0" if rep is None else str(int(rep) + 1)
     return int(
         str(root_seed)
