@@ -6,6 +6,7 @@ from typing import Optional
 
 def construct_seed(
     root_seed: int,
+    config: dict,
     scenario: Optional[str],
     i0: Optional[str],
     scaling_factor: Optional[str],
@@ -25,20 +26,8 @@ def construct_seed(
         k: str(v + 1) for k, v in scenario_hash.items()
     }
 
-    i0_to_int = {
-        None: "0",
-        "1000": "1",
-        "2000": "2",
-        "4000": "3",
-    }
-    scale_to_int = {
-        None: "0",
-        "0.0": "1",
-        "0.25": "2",
-        "0.5": "3",
-        "0.75": "4",
-        "1.0": "5",
-    }
+    i0_to_int = {None: "0"} | {str(x) : str(i) for i,x in enumerate(config["simulations"]["i0"])}
+    scale_to_int = {None: "0"} | {str(x) : str(i) for i,x in enumerate(config["empirical_lag"]["scaling_factors"])}
     rep_str = "0" if rep is None else str(int(rep) + 1)
     return int(
         str(root_seed)
