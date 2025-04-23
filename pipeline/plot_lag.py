@@ -26,6 +26,7 @@ if __name__ == "__main__":
     rng = np.random.default_rng(
         construct_seed(
             config["seed"],
+            config=config,
             scenario=None,
             i0=None,
             scaling_factor=args.scaling_factor,

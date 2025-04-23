@@ -34,6 +34,7 @@ if __name__ == "__main__":
 
     seed = construct_seed(
         config["seed"],
+        config,
         args.scenario,
         args.i0,
         args.scaling_factor,
