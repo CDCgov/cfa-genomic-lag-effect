@@ -10,7 +10,7 @@ def test_lnl_runs():
     coals = samps[1:] + 0.25
     rate_grid = np.arange(19)
     intervals = data.CoalescentData(coals, samps, rate_grid)
-    _ = RenewalCoalescentModel.log_likelihood(
+    _ = RenewalCoalescentModel.piecewise_constant_log_likelihood(
         intervals, np.arange(1, 21), np.arange(1, 21)
     )
 
@@ -26,7 +26,9 @@ def test_offset_same_loglik():
     coal_data = data.CoalescentData(coals, samps, rate_grid)
 
     lnl_no_offset = float(
-        RenewalCoalescentModel.log_likelihood(coal_data, foi, prevalence)
+        RenewalCoalescentModel.piecewise_constant_log_likelihood(
+            coal_data, foi, prevalence
+        )
     )
 
     nondeterministic = data.CoalescentData.likelihood_relevant_intervals(
@@ -34,7 +36,7 @@ def test_offset_same_loglik():
     )
     assert nondeterministic.dt.shape[0] < coal_data.dt.shape[0]
     lnl_offset = float(
-        RenewalCoalescentModel.log_likelihood(
+        RenewalCoalescentModel.piecewise_constant_log_likelihood(
             nondeterministic, foi, prevalence
         )
     )
@@ -67,10 +69,10 @@ def test_model_runs():
 
 
 def test_sim_runs():
-    _ = RenewalCoalescentModel.simulate_coalescent_times(
+    _ = RenewalCoalescentModel.simulate_approx_coalescent_times(
         sampling_times=np.arange(5, 10) + 0.5,
         rate_shift_times=np.arange(19),
         force_of_infection=np.array([1] * 20),
-        prevalence=np.arange(1, 21),
+        approx_squared_prevalence=np.arange(1, 21),
         rng=np.random.default_rng(0),
     )

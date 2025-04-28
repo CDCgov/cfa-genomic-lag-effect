@@ -74,8 +74,14 @@ class RenewalCoalescentModel(RtModel):
         # Coalescent likelihood
         factor(
             "coalescent_likelihood",
-            RenewalCoalescentModel.log_likelihood(
-                data, daily_incidence, daily_prevalence
+            RenewalCoalescentModel.piecewise_constant_log_likelihood(
+                data,
+                jnp.flip(daily_incidence),
+                jnp.flip(
+                    RenewalCoalescentModel.approx_squared_prevalence(
+                        daily_prevalence
+                    )
+                ),
             ),
         )
 
@@ -84,8 +90,28 @@ class RenewalCoalescentModel(RtModel):
     ########################
 
     @staticmethod
-    def coalescent_rate(prevalence, n_active, force_of_infection):
-        return choose2(n_active) * 2.0 * force_of_infection / prevalence
+    def approx_squared_prevalence(prevalence):
+        prev_diff = jnp.diff(prevalence)
+        return jnp.where(
+            prev_diff == 0.0,
+            jnp.pow(prevalence[:-1], 2.0),
+            (
+                jnp.pow(prevalence[:-1] + jnp.diff(prevalence), 3.0)
+                - jnp.pow(prevalence[:-1], 3.0)
+            )
+            / (3.0 * prev_diff),
+        )
+
+    @staticmethod
+    def approx_coalescent_rate(
+        approx_squared_prevalence, force_of_infection, n_active_choose_2
+    ):
+        return (
+            n_active_choose_2
+            * 2.0
+            * force_of_infection
+            / approx_squared_prevalence
+        )
 
     @staticmethod
     def grid_helper(
@@ -111,39 +137,20 @@ class RenewalCoalescentModel(RtModel):
         return tree_t_min, tree_t_max, burnin
 
     @staticmethod
-    def log_likelihood(
-        intervals: CoalescentData, force_of_infection, prevalence
+    def piecewise_constant_log_likelihood(
+        intervals: CoalescentData,
+        force_of_infection,
+        approx_squared_prevalence,
     ):
         """
         Computes the likelihood of construct_epi_coalescent_grid(coalescent_times, sampling_times, rate_shift_times)
-        given the piecewise constant force of infection and piecewise constant prevalence.
+        given the piecewise constant force of infection and approximated piecewise constant squared prevalence.
         """
 
-        rate = (
-            intervals.num_active_choose_2
-            * 2.0
-            * force_of_infection[intervals.rate_indexer]
-            / prevalence[intervals.rate_indexer]
-        )
-        lnl = rate * intervals.dt - jnp.where(
-            intervals.ends_in_coalescent_indicator, jnp.log(rate), 0.0
-        )
-        return lnl.sum()
-
-    @staticmethod
-    def log_likelihood_from_intervals(
-        intervals: CoalescentData, force_of_infection, prevalence
-    ):
-        """
-        Computes the likelihood of construct_epi_coalescent_grid(coalescent_times, sampling_times, rate_shift_times)
-        given the piecewise constant force of infection and piecewise constant prevalence.
-        """
-
-        rate = (
-            intervals.num_active_choose_2
-            * 2.0
-            * force_of_infection[intervals.rate_indexer]
-            / prevalence[intervals.rate_indexer]
+        rate = RenewalCoalescentModel.approx_coalescent_rate(
+            approx_squared_prevalence[intervals.rate_indexer],
+            force_of_infection[intervals.rate_indexer],
+            intervals.num_active_choose_2,
         )
         lnl = rate * intervals.dt - jnp.where(
             intervals.ends_in_coalescent_indicator, jnp.log(rate), 0.0
@@ -182,23 +189,83 @@ class RenewalCoalescentModel(RtModel):
 
     @staticmethod
     @np.errstate(divide="ignore")
-    def simulate_coalescent_times(
+    def simulate_approx_coalescent_times(
         sampling_times: NDArray,
         rate_shift_times: NDArray,
         force_of_infection: NDArray,
-        prevalence: NDArray,
+        approx_squared_prevalence: NDArray,
         rng=np.random.default_rng(),
     ) -> CoalescentData:
         """
         Simulates coalescent times given sampling times, rate shit times,
         the piecewise constant force of infection, and the piecewise constant prevalence.
         """
+        event_stack = RenewalCoalescentModel.setup_simulation_grid(
+            sampling_times,
+            rate_shift_times,
+            force_of_infection,
+            approx_squared_prevalence,
+        )
+
+        n_coal = sampling_times.shape[0] - 1
+        time = 0.0
+
+        next_time, next_is_sampling = event_stack.pop(0)
+
+        rate_idx = 0
+        sample_idx = 0
+        n_active = 0
+        coalescent_times = []
+        rate_inv = 1.0 / RenewalCoalescentModel.approx_coalescent_rate(
+            approx_squared_prevalence[rate_idx],
+            force_of_infection[rate_idx],
+            choose2(n_active),
+        )
+
+        while len(coalescent_times) < n_coal:
+            wt = rng.exponential(rate_inv)
+
+            if time + wt > next_time:
+                time = next_time
+                if next_is_sampling:
+                    sample_idx += 1
+                    n_active += 1
+                else:
+                    rate_idx += 1
+                next_time, next_is_sampling = event_stack.pop(0)
+            else:
+                time += wt
+                coalescent_times.append(time)
+                n_active -= 1
+            rate_inv = 1.0 / RenewalCoalescentModel.approx_coalescent_rate(
+                approx_squared_prevalence[rate_idx],
+                force_of_infection[rate_idx],
+                choose2(n_active),
+            )
+
+        return CoalescentData(
+            np.array(coalescent_times),
+            sampling_times,
+            rate_shift_times,
+            intervals=None,
+        )
+
+    @staticmethod
+    def setup_simulation_grid(
+        sampling_times: NDArray,
+        rate_shift_times: NDArray,
+        force_of_infection: NDArray,
+        approx_squared_prevalence: NDArray,
+    ) -> list[tuple[float, bool]]:
+        """
+        Unifies sampling and rate shift times for simulation.
+        """
         assert (
             rate_shift_times.shape[0] == force_of_infection.shape[0] - 1
         ), f"There are {rate_shift_times.shape[0]} rate shift times, expected {rate_shift_times.shape[0] + 1} `force_of_infection` and `prevalence entries`."
         assert (
-            force_of_infection.shape[0] == prevalence.shape[0]
-        ), f"Provided force_of_infection is length {force_of_infection.shape[0]} while provided prevalence is length {prevalence.shape[0]}"
+            force_of_infection.shape[0] == approx_squared_prevalence.shape[0]
+        ), f"Provided force_of_infection is length {force_of_infection.shape[0]} while provided prevalence is length {approx_squared_prevalence.shape[0]}"
         rate_times = np.concat(
             (
                 np.sort(rate_shift_times),
@@ -212,41 +279,45 @@ class RenewalCoalescentModel(RtModel):
             )
         )
 
-        n_coal = sampling_times.shape[0] - 1
-        time = 0.0
-        rate_idx = 0
-        sample_idx = 0
-        n_active = 0
-        coalescent_times = []
-        rate_inv = 1.0 / RenewalCoalescentModel.coalescent_rate(
-            prevalence[rate_idx], n_active, force_of_infection[rate_idx]
-        )
-        while len(coalescent_times) < n_coal:
-            wt = rng.exponential(rate_inv)
+        events = [
+            (
+                samp_times,
+                [
+                    1,
+                ],
+            ),
+            (
+                rate_times,
+                [
+                    0,
+                ],
+            ),
+        ]
 
-            if time + wt > rate_times[rate_idx]:
-                time = rate_times[rate_idx]
-                rate_idx += 1
-            elif time + wt > samp_times[sample_idx]:
-                time = samp_times[sample_idx]
-                sample_idx += 1
-                n_active += 1
-            else:
-                time += wt
-                coalescent_times.append(time)
-                n_active -= 1
-            rate_inv = 1.0 / RenewalCoalescentModel.coalescent_rate(
-                prevalence[rate_idx],
-                n_active,
-                force_of_infection[rate_idx],
+        event_times = np.concatenate(
+            [
+                np.column_stack(
+                    [times, *[np.repeat(n, times.shape) for n in values]]
+                )
+                for times, values in events
+            ]
+        )
+
+        # When ties are present, sampling times after rate shift times
+        key = np.lexsort(
+            (
+                event_times[:, 1],
+                event_times[:, 0],
             )
-
-        return CoalescentData(
-            np.array(coalescent_times),
-            sampling_times,
-            rate_shift_times,
-            intervals=None,
         )
+        event_times = event_times[key, :]
+        return [
+            (
+                event_times[i, 0],
+                event_times[i, 1] > 0,
+            )
+            for i in range(event_times.shape[0])
+        ]
 
     #################
     # Renewal model #
