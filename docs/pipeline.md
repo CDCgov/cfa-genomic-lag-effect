@@ -11,6 +11,12 @@ The following diagram describes the simulation study pipeline, with nested plate
 Note that all python scripts have settings configurable via `pipeline/config.json`, including to define the grid of true parameter values.
 Inputs are teal, pipeline scripts blue, results orange, and all other elements are intermediate inputs/outputs.
 
+Note that not all simulations have identical amounts of data.
+Samples for the coalescent process are taken over a [specified number of weeks](#configurable-settings) before the forecast date.
+Sample lag means that many of these, and in particular the more recent samples, will not be available.
+That is, the effect of delay is to _remove_ rather than _shift_ sampling times, and the specified number of samples is not the number of _sequences_ available on the forecast date.
+As lags are sampled randomly, a simulation with a lag scaling factor $> 0$ will have a smaller number of sequences available.
+
 ```mermaid
 
 flowchart TB
@@ -78,7 +84,7 @@ flowchart TB
   classDef result fill: #ff9349
 ```
 
-### Running the pipeline
+## Running the pipeline
 
 The pipeline is implemented in [snakemake](https://snakemake.github.io/), which will also be installed with `poetry install`.
 The pipeline requires two inputs:
@@ -104,3 +110,37 @@ The command `poetry run snakemake diagnostics` will produce plots showing:
   - A comparison of samples of the approximation to the approximation itself.
 
 Note that if snakemake has not yet been called, this will run pipeline steps prior to `analyze.py`.
+
+## Re-configuring the pipeline
+
+The [pipeline config file](../pipeline/config.json) allows a number of parameters to be changed.
+Some changes can be made safely, while others may have unintended downstream consequences.
+For example, changing the per-week-day profile for sampling times should be safe, but adding a much larger $I_0$ could lead to an overly-large number of implausibly old coalescent events.
+Parameter values have been chosen to cover a reasonable range of parameter space and for cross-compatibility.
+The [diagnostic plots](#visualizing-the-simulated-scenarios) are intended to help check the sanity of settings, but cannot catch every possible problem.
+
+### Configurable settings
+- `seed`: the prefix for the seed (the actual seed is created from this so as to be unique per combination of $R_t$, $I_0$, lag scaling factor, and simulation replicate)
+- `empirical_lag`
+  - `date_lower`: Nextstrain data before this date is ignored when determining the empirical lag distribution
+  - `date_upper`: Nextstrain data on or after this date is ignored when determining the empirical lag distribution
+  - `n_steps`: controls knot count in the spline approximation to the empirical lag distribution
+  - `low`: lags less than `low` have 0 probability, regardless of the empirical distribution
+  - `high`: lags larger than `high` have 0 probability, regardless of the empirical distribution
+  - `scaling_factors`: if $X \sim \hat{f}(X)$ is drawn from the fitted approximate lag distribution, simulations will use $Y := kX$ for k in `scaling_factors`
+- `simulations`
+  - `sampling`: controls coalescent sampling (tip times)
+    - `weekday_effect`: provides the per-week-day proportion of samples taken in a week
+    - `n_samples`: number of samples taken, not necessarily [the number of samples available for inference](#simulation-study-pipeline)
+    - `n_sampled_weeks`: samples will be taken over this many weeks
+  - `n_rep`: number of replicate simulations per combination of $R_t$, $I_0$, lag scaling factor
+  - `i0`: a vector of initial incidence values
+- `renewal`
+  - `infectious_profile` the infectiousness profile of the [renewal model](model.md#1)
+  - `init_growth_steps` number of days incidence evaluated at prior to first time step in the renewal model (should be at least equal to length of `infectious_profile`)
+- `bayes`
+  - `mcmc`: settings passed to `numpyro.infer.NUTS`
+  - `mcmc`: settings passed to `umpyro.infer.MCMC`
+  - `ci_alpha`: where credible intervals are used, they will span (1 - `ci_alpha`) x 100\%
+  - `cores`: number of cores available to `NumPyro` for parallel chains
+  - `convergence_report_all`: whether to report MCMC convergence summaries for all parameters (`true`) or just those failing convergence standards (`false`)
