@@ -14,7 +14,11 @@ Given the total elapsed time $T$, we can convert from forward time to backward t
 We assume all piecewise-constant functions exist on a regular grid (generally daily), and write either $g(t) := g_{\lfloor t \rfloor}$ or $g(t) := g_{\lceil t \rceil}$ depending on whether the function is left- or right-inclusive.
 Note that a left-inclusive function viewed forward in time is a right-inclusive function viewer backward in time, and vice-versa.
 
-## $R(t)$
+## Renewal models
+
+In brief, renewal models use the effective reproduction number $R(t)$ and the generation time distribution to propagate incidence.
+
+### $R(t)$
 
 We model the effective reproduction number $R(t)$ as a piecewise constant function with weekly change points
 ```math
@@ -29,116 +33,140 @@ where $\mathbf{R}$ is modelled as a log-scale Gaussian Markov random field
 ```
 Note that $R_0$ is _not_ the basic reproduction number, it is simply the first value of the effective reproduction number in the piecewise constant function.
 
-## $I(t)$
+### $I(t)$
 
-Renewal models track, forwards in time, incident infections as a function of the history of incidence and reproduction number.
-In particular, renewal models work in discrete time steps, with[@cori2013new]
+In continuous time, renewal models link the current instantaneous incidence rate to $R(t)$ and the history of incidence as [@green2022inferring]
+```math
+\mathbb{E}[I(t)] = R(t) \int_{s = 0}^\infty I(t - s) \omega(s) \mathrm{d}s
+```
+where $w(s)$ is the generation time distribution, linking time since infection to infectivity ($\int_s \omega(s) \mathrm{d}s = 1$).
+
+Renewal models are particularly convenient in discrete time, both because observations of emissions from the process are typically binned (such as daily hospitalization counts) and because it enables replacing integrals with summations.
+In discrete time, [@cori2013new]
 ```math
 \mathbb{E}[I_t] = R_t \sum_{s=1}^{t} I_{t - s} w_s
 ```
-where $\mathbf{w}$ is a discrete-time infectivity profile and $\sum_s w_s = 1$.
-We make the large-population approximation $I_t \approx \mathbb{E}[I_t]$, yielding the deterministic model
+where $\mathbf{w}$ is the discretized PMF form of $\omega$.
+
+It is also often convenient to make the large-population approximation $I_t \approx \mathbb{E}[I_t]$, yielding the deterministic model
 ```math
 I_t = R_t \sum_{s=1}^{t} I_{t - s} w_s
 ```
 
-In general, $\mathbf{w}$ is estimated separately from applying the renewal model from other sources of data.
+Typically, $\mathbf{w}$ is taken to be known when applying renewal models, having been estimated separately.
 As such, deterministic renewal models are a convenient method for linking $R_t$ with incidence without need for many additional (free) model parameters.
+Some assumptions are necessary to initialize the process, we assume that at and prior to time 0, the process is in a steady state of constant incidence ($I_0 = I_{-1} = I_{-2} = \dots$), which is a parameter that must be estimated.
 
-## $P(t)$ and the force of infection
+### $P(t)$
 
-To link prevalence with a renewal model's discrete-time incidence, we must make assumptions about the rate of accumulation of incident infections $f_{\mathrm{I}}(t)$ and the duration for which infections last.
-
-We assume that infections last a constant (integer) duration $\gamma$.
-Thus, in an interval, new incident infections enter the population at rate $f_\mathrm{I}(t)$ while previous incident infections exit the population at rate $f_\mathrm{I}(t - \gamma)$
+Renewal models propagate incident infections without touching prevalence.
+However, let us assume that the generation time distribution has finite support over a range $[0, \gamma]$.
+(That is, $\gamma$ is the largest $s$ such that $\omega(s) > 0$ in continuous time or such that $w_s > 0$ in discrete time.)
+Then, $\gamma$ is the duration of infectiousness, and the size of the infectious population at time $t$ is
 ```math
-\frac{\mathrm{d} P(t)}{\mathrm{d}t} = f_\mathrm{I}(t) - f_\mathrm{I}(t - \gamma)
+P(t) = \int_{s = 0}^{\gamma} I(t - s) \mathrm{d}t
 ```
-
-We further assume that the rate of accumulation of incident infections in a day is constant, which makes $P(t)$ piecewise linear and enables piecewise integration.
+in continuous time or
 ```math
-P(t) = \left( \sum_{s = 0}^{\gamma - 1} I_{\lfloor t \rfloor - s} \right) + \left( t - {\lfloor t \rfloor} \right) \left( f_\mathrm{I}(t) - f_\mathrm{I}(t - \gamma) \right)
+P_t = \sum_{s = 0}^{\gamma} I(t - s)
 ```
-In particular, $f_{\mathrm{I}}(t) = I_{\lceil t \rceil}$, so
-```math
-P(t) = \left( \sum_{s = 0}^{\gamma - 1} I_{\lfloor t \rfloor - s} \right) + \left( t - {\lfloor t \rfloor} \right) \left( I_{\lceil t \rceil} - I_{\lceil t \rceil - \gamma} \right)
-```
+in discrete time.
 
-## Linking coalescent models to prevalence and incidence
+## Epidemiological coalescent models
 
-### Coalescent models in epidemiology
+### Coalescent background
+
 The coalescent[@kingman1982coalescent] models, backwards in time (from present to past), infections in a sample from the population of infecteds.
-Each coalescent event represents the common ancestor of two infections, each of which is either a sampled infection or an ancestor of two or more sampled infections.
+A coalescent event is the merger of two lineages (each of which has at least one descendant in the sample, or is itself in the sample) into one lineage.
 
-A coalescent model expresses the probability density of the coalescent events as $\mathrm{Pr}(\mathbf{c} \mid \mathbf{s}, A')$, where $\mathbf{c}$ is the vector of coalesccent times, $\mathbf{s}$ is the vector of sampling times, and $A'$ is the function specifying the rate of change of the number of extant individuals in the sample history.
-The function $A'(\tau)$ is the bridge between the coalescent times and the process of infections.
-The sampling times $\mathbf{s}$ are conditioned upon, which means both that no explicit information is drawn from them and that the coalescent is "unaware" of vagaries of the sampling process such as the lag from sample collection to the sequence being available.
+Somewhat more formally, the coalescent is a Markov model which provides a probability distribution on the number of ancestral lineages in a sample at time $A(\tau)$, where time is measured from present, $\tau = 0$, to past, $\tau > 0$.
+As a Markov process, it naturally decomposes into a series of independent intervals.
+If the vector $\mathbf{c}$ has the coalescent events sorted in increasing order, as sampling events are deterministic we can write the coalescent likelihood as
+```math
+\mathrm{Pr}(c_i \mid c_{i - 1}) = \frac{A(c_{i - 1}) \choose 2}{\nu(c_i)} \exp \left[ - \int_{\tau = c_{i - 1}}^{c_i} \frac{A(\tau) \choose 2}{\nu(\tau)} \mathrm{d} \tau \right]
+```
+where $\nu(\tau)$ is a function that controls the (inverse of the) branching rate.
 
-Coalescent models are Markov models, such that conditional on the state of the process at time $\tau$, events at times greater than $\tau$ are independent of events at times less than $\tau$.
-The probability density can thus be factorized conveniently into intervals in which $A(\tau)$ is constant.
-There are thus two possibilities for an interval $(\tau, \tau + \Delta\tau]$:
-1. A coalescent event occurs and $A(\tau + \Delta \tau) = A(\tau) - 1$. The probability of this is
+Note that as the process is Markov, we could break this integration at any arbitrary time $c_{i - 1} \leq \delta \leq c_i$ to obtain
 ```math
-\text{Pr}(A(\tau + \Delta \tau) = A(\tau) - 1) = {A(\tau) \choose 2} A'(\tau + \Delta \tau) \exp\left[- \int_{s = \tau}^{\tau + \Delta \tau} A'(s) \mathrm{d}s \right]
+\mathrm{Pr}(c_i \mid c_{i - 1}) = \frac{A(c_{i - 1}) \choose 2}{\nu(c_i)} \exp \left[ - \left( \int_{\tau = c_{i - 1}}^{\delta} \frac{A(\tau) \choose 2}{\nu(\tau)} \mathrm{d} \tau \right) - \left( \int_{\tau = \delta}^{c_i} \frac{A(\tau) \choose 2}{\nu(\tau)} \mathrm{d} \tau \right) \right]
 ```
-2. A sampling event occurs and $A(\tau + \Delta \tau) = A(\tau) + 1$. The probability of this is
+As such, we can write the coalescent log-likelihood as a sum over any arbitrary set of times $\tau_0, \tau_1, \dots, \tau_G$.
+Assuming that all coalescent times are among these times (and thus $G \geq |\mathbf{c}|$), we get
 ```math
-\text{Pr}(A(\tau + \Delta \tau) = A(\tau) - 1) = \exp\left[- \int_{s = \tau}^{\tau + \Delta \tau} A'(s) \mathrm{d}s \right]
+\log \mathrm{Pr}(\mathbf{c} \mid \mathbf{s}, \nu) = \sum_{g = 1}^{G} \left( \mathbb{I_C}(\tau_i)\frac{A(\tau_{i - 1}) \choose 2}{\nu(\tau_i)} + \exp \left[-{A(\tau_{i - 1}) \choose 2} \int_{\tau = \tau_{i - 1}}^{\tau_i} \frac{1}{\nu(\tau)} \mathrm{d} \tau \right] \right)
+```
+where we are implicitly assuming right-inclusive intervals (hence the number of ancestral lineages in the interval is $A(\tau_{i - 1})$) and that $\tau_0 \leq \min(\min(\mathbf{c}), \min(\mathbf{s}))$.
+WLOG we can set $\tau_0 = 0$ because the combinatoric terms are such that the coalescent rate in intervals with $A(\tau) < 2$ is 0.
+
+While there are tractable analytical solutions to this likelihood for some forms of $\nu$, general solutions require numerical integration.
+As such, the most widely used coalescent models, such as the skygrid[@gill2013improving], approximate more complex functional forms with piecewise-constant functions.
+In the case where $\nu(\tau)$ is constant within the intervals, the likelihood simplifies to
+```math
+\log \mathrm{Pr}(\mathbf{c} \mid \mathbf{s}, \nu) = \sum_{g = 1}^{G} \left( \mathbb{I_C}(\tau_i)\frac{A(\tau_{i - 1}) \choose 2}{\nu(\tau_i)} + \exp \left[-{A(\tau_{i - 1}) \choose 2} \frac{\tau_i - \tau_{i - 1}}{\nu(\tau_{i - 1})} \right] \right)
+```
+In addition to the analytically straightforward form of the likelihood, simulating coalescent times piecewise constant models is much more straightforward and efficient than for other functional forms.[@palacios2013gaussian]
+
+### Phylodynamic coalescent models: big picture
+
+Applying the coalescent model to epidemiology is part of the field of [(viral) phylodynamics](https://en.wikipedia.org/wiki/Viral_phylodynamics).
+One assumes that lineages represent infections, and as such coalescent events are the backwards-time view of new infections arising.
+It is worth noting at this point that the disease history assumed by this model is one in which individuals are _infectious_ for the entirety of the time they are _infected_.
+At least one individual involved in a transmission event must be infectious, and the result is one newly infected individual.
+As the coalescent assumes exchangeability of all individuals in the population at hand[@wakely2009], we have thus equated the two.
+
+As a model of the history of a sample, the coalescent conditions on the sample taken, rather than drawing information from the sampling times.
+This avoids the need to model the sampling process, both in terms of how samples are initially collected and the lag from sample collection to the sequence being available.
+
+A useful framework for linking the coalescent to dynamics of infection is presented by Volz _et al_. (2009)[@volz2009phylodynamics] and Frost and Volz (2010)[@frost2010viral].
+The rate of coalescent events among the entire population of infecteds is given by the overall rate of infection, and the rate that is observed in the sample is modulated by the probability that any such coalescent is between lineages with sampled descendants.
+
+### Coalescent models in phylodynamics: math
+
+Let the absolute (not per-capita) rate of new infections arising at time $\tau$ before present ne $f_{\mathrm{I}}(\tau)$.
+Then the rate of coalescent events among the entire population of infecteds is $-f_{\mathrm{I}}(\tau)$, as coalescents decrease the number of ancestral lineages backwards in time.
+A coalescent event happens between one pair of the $P(\tau)$ infecteds, while we can only see it if both of those are in the $A(\tau)$ ancestral lineages, so the "observed" coalescent rate is
+```math
+-f_{\mathrm{I}}(\tau) \frac{A(\tau) \choose 2}{P(\tau) \choose 2}
 ```
 
-We can write these jointly by introducing an indicator function $\mathbb{I_C}(\tau)$ which is 1 when there is a coalescent event at time $\tau$ and 0 otherwise.
-This yields the interval-based probability density
+The expected rate of change of the number of active lineages is
 ```math
-\mathrm{Pr}((\tau, \tau + \Delta\tau]) = \exp \left[ \left( \mathbb{I_C}(\tau + \Delta \tau) {A(\tau) \choose 2} A'(\tau + \Delta \tau) \right) - \int_{s = \tau}^{\tau + \Delta \tau} A'(s) \mathrm{d}s \right]
+\frac{\mathrm{d} A}{\mathrm{d} \tau} = - \frac{A(\tau) \choose 2}{\nu(\tau)}
 ```
 
-Frost and Volz (2010)[@frost2010viral] study $A'(\tau)$ for a variety of compartmental models under the large-$P(t)$ approximation (Equation 2.4)
+By equating these two quantities, and assuming $P(t)$ is sufficiently large that ${P(t) \choose 2} \approx P(t)^2 / 2$ we arrive at
 ```math
-A'(\tau) = \frac{\mathrm{d}A(\tau)}{\mathrm{d}t} = -{A(\tau) \choose 2}\frac{2 f_{\mathrm{I}}(\tau)}{P(\tau)^2}
+\frac{\mathrm{d} A}{\mathrm{d} \tau} = -\frac{A(\tau) \choose 2}{\nu(\tau)} \approx -2f_{\mathrm{I}}(\tau) \frac{A(\tau) \choose 2}{P(\tau)^2}
 ```
+which we can rearrange to obtain
+```math
+\nu(\tau) = \frac{P(\tau)^2}{2 f_{\mathrm{I}}(\tau)}
+```
+
 ### Renewal coalescent models
 
-We can use our previous assumptions about the incidence-derived piecewise-constant $f_{\mathrm{I}}(\tau)$ and piecewise-linear $P(\tau)$ in concert with Frost and Volz's approximation to obtain
+Renewal models can be used in the Volz _et al._ (2009) framework.
+The rate of accumulation of incident infections is $f_{\mathrm{I}}$, and we have seen above how to obtain prevalence from a renewal model.
+The renewal model should be started far enough in the past to provide a well-defined prevalence and incidence rate for all coalescent times.
+
+The big challenge in combining a renewal and coalescent model is that the functional forms induced by a renewal model for $\nu(t)$ are arbitrary and preclude analytical forms of the likelihood.
+As such, we approximate $\nu(\tau)$ as piecewise constant on a daily scale.
+This further enables the use of discrete-time renewal model dynamics.
+In particular, we make the convenient approximation
 ```math
-A'(\tau) = \frac{\mathrm{d}A(\tau)}{\mathrm{d}t} = -{A(\tau) \choose 2}\frac{2 I_{\lfloor \tau \rfloor}}{P(\tau)^2}
+\nu(\tau) \approx \frac{P_{\lceil \tau \rceil}^2}{2 I_{\lceil \tau + 1 \rceil}}
 ```
-The integral has an analytical solution, but simulating coalescent times from this model is highly nontrivial.
+that is, we use the discrete-time incidence accumulated during an interval as the rate of new infections and the discrete-time prevalence at the (oldest) end of the interval as the prevalence.
 
-Coalescent models with piecewise-constant $A'$, such as the popular coalescent skygrid model[@gill2013improving], are analytically straightforward and convenient to sample from.
-To approximate $A'(\tau)$ as piecewise constant, we employ the daily average value of $P(\tau)^2$.
-That is, we define
-```math
-\tilde{P}(\tau) = \tilde{P}_{\lfloor \tau \rfloor} = \int_{x = \tau}^{\tau + 1} P(x)^2 \mathrm{d}x
-```
-and make the approximation
-```math
-A'(\tau) \approx \tilde{A}'(\tau) = -{A(\tau) \choose 2}\frac{2 I_{\lfloor \tau \rfloor}}{\tilde{P}_{\lfloor \tau \rfloor}}
-```
-Note that as we are using this approximation to both simulate and analyze the simulated data, in a sense the approximation error cancels out.
+### Violations of the coalescent and their implications
 
-This approximated $\tilde{A}'(\tau)$ is a piecewise constant function which changes every day and at each sampling and coalescent event.
-If we collect all these times in the vector $\mathbf{g}$, we can expand the previous interval-based form of the probability density.
-(Note that this vector is sorted in increasing backwards time, such that $g_0 = 0$ is the present day.)
-This gives us the log-likelihood
-```math
-\log \mathrm{Pr}(\mathbf{c} \mid \mathbf{s}, \tilde{A}') = \sum_{k = 1}^{|\mathbf{g}|} \left[ \left( g_k - g_{k - 1} \right) \left( {A_k \choose 2} \frac{2 I_{\lfloor g_k \rfloor}}{\tilde{P}_{\lfloor g_k \rfloor}} \right) + \mathbb{I_C}(g_k) \log \left( {A_k \choose 2} \frac{2 I_{\lfloor g_k \rfloor}}{\tilde{P}_{\lfloor g_k \rfloor}} \right) \right]
-```
+The coalescent is a model for the behavior of exchangeable individuals in a neutrally-evolving panmictic population.
+Violations of these assumptions, and a variety of other unmodeled complications, often have the effect of making the coalescent process behave as if the population were smaller.
+Thus, often the _effective population size_ is discussed rather than the absolute population size.
 
-It is perhaps more convenient to contemplate the average prevalence in forwards time, where
-```math
-\begin{align*}
-\tilde{P}(t) &= \tilde{P}_{\lceil t \rceil} \\
-&= \int_{x = t}^{t + 1} P(x)^2 \mathrm{d}s \\
-&= \int_{x = t}^{t+ 1} \left[ P(t) + \left( x - t \right) \left( I_{t + 1} - I_{t + 1 - \gamma} \right) \right]^2 \mathrm{d}x \\
-&= \frac{\left[ P(t) + \left( x - t \right) \left( I_{t + 1} - I_{t + 1 - \gamma} \right) \right]^3}{3 \left( I_{t + 1} - I_{t + 1 - \gamma} \right)}\Bigg|_{t}^{t+1} \\
-&= \frac{\left[ P(t) + \left( I_{t + 1} - I_{t + 1 - \gamma} \right) \right]^3 - P(t)^3}{3 \left( I_{t + 1} - I_{t + 1 - \gamma} \right)}
-\end{align*}
-```
-
-### Assumptions
-
-We should also grapple briefly with what we are assuming about disease progression.
-Coalescent models of the type used here are models of a panmictic, monotypic population.
-Panmictic means there is no spatial structure; if we applied this model to the entire US, there would be one US-side pool of infected individuals, and an infection in California is just as likely to share an immediate common ancestor with another from California as one in New York.
-
-\bibliography
+When applying renewal coalescent models to populations of infections, we might expect a similar pattern.
+The renewal model has overlapping generations and age-dependent reproduction.
+The former is not a model violation, but overlapping generations serve to reduce the effective population size by a factor related to the variance in the offspring distribution [@hill1979note].
+The latter is a model violation (making individuals non-exchangeable) and, in combination with the former and fluctuations in the environment or population size (both of which we expect in reality), serve to further depress the effective population size[@engen2005effective].
+As real pathogens are often evolving in response to selective pressures induced by the human immune system, the effects of which vary by the nature of the selection at hand and pathogen genome architecture with respect to the part of the genome used in phylogenetic inference, but can serve to depress the effective population size[@charlesworth2009effective].
