@@ -47,17 +47,11 @@ if __name__ == "__main__":
         incidence = np.array(infections["incidence"])
         prevalence = np.array(infections["prevalence"])
 
-    approx_squared_prevalence = (
-        RenewalCoalescentModel.approx_squared_prevalence(prevalence)
-    )
-
     n_days = prevalence.shape[0] - 1
     rate_shift_times = np.arange(1, n_days)
 
-    backwards_incidence = np.flip(incidence)[:n_days]
-    backwards_approx_squared_prevalence = np.flip(approx_squared_prevalence)[
-        :n_days
-    ]
+    backwards_incidence = np.flip(incidence[:-1])[:n_days]
+    backwards_prevalence = np.flip(prevalence)[:n_days]
 
     with open(args.infile[1], "r") as file:
         lag_params = json.load(file)
@@ -74,7 +68,7 @@ if __name__ == "__main__":
         samp_times,
         rate_shift_times,
         backwards_incidence,
-        backwards_approx_squared_prevalence,
+        backwards_prevalence,
     )
     lags = lag_dist.draw(
         size=config["simulations"]["sampling"]["n_samples"],

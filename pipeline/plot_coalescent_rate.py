@@ -59,10 +59,11 @@ if __name__ == "__main__":
 
     axs[3].scatter(
         np.arange(n_days - 1),
-        coalescent_counts.cumsum() / coalescent_counts.sum(),
+        1.0 - (coalescent_counts.cumsum() / coalescent_counts.sum()),
         marker=".",
     )
-    axs[3].set_ylabel("Mean cumulative proportion of coalescents")
+    axs[3].set_yscale("log")
+    axs[3].set_ylabel("Mean coalescent CCFD")
 
     axs[4].scatter(np.arange(n_days - 1), sampling_counts, marker=".")
     axs[4].set_ylabel("Mean daily samples")

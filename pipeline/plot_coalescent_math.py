@@ -32,10 +32,10 @@ if __name__ == "__main__":
     unit_coal_rate = RenewalCoalescentModel.approx_coalescent_rate(
         prevalence,
         incidence,
-        np.repeat(1, incidence.shape[0] - 1),
+        np.repeat(1, incidence.shape[0]),
     )
 
-    fig, axs = plt.subplots(4, 1, figsize=(6, 12))
+    fig, axs = plt.subplots(3, 1, figsize=(6, 12))
 
     axs[0].scatter(np.arange(n_days), incidence[:n_days], marker=".")
     axs[0].set_ylabel("Incidence")
