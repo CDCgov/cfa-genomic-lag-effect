@@ -4,6 +4,8 @@ import os
 configfile: "pipeline/config.json"
 
 scenario_list = glob_wildcards("pipeline/input/rt/{scenario}.txt").scenario
+if not scenario_list:
+    raise RuntimeError("There are no Rt scenarios.")
 
 rule all:
     input:
@@ -99,8 +101,11 @@ rule plot_coalescent_math_diagnostics:
         "python3 -m pipeline.plot_coalescent_math --config pipeline/config.json --infile {input} --outfile {output}"
 
 rule fit_lag:
+    input:
+        "pipeline/input/metadata.tsv"
+
     output:
-        "pipeline/output/lag/fit.json",
+        "pipeline/output/lag/fit.json"
 
     shell:
         "python3 -m pipeline.fit_lag --config pipeline/config.json --outfile {output}"
