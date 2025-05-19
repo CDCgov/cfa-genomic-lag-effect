@@ -93,6 +93,7 @@ The pipeline requires two inputs:
 - $R_t$ time series, taken to be values of a weekly piecewise-constant function, in `pipeline/input/rt`, as plain text with one line per week (forward in time).
 
 Running `poetry run sh pipeline/setup.sh` will result in the requisite Nextstrain data being downloaded and uncompressed as well as the generation of three suitable $R_t$ time series.
+This requires [`zstd`](https://github.com/facebook/zstd), available for example on Ubuntu via `apt install zstd`.
 
 With these inputs in place, run the pipeline via `poetry run snakemake -j1` (this flag keeps snakemake from conflicting with NumPyro and polars on core and memory usage).
 
