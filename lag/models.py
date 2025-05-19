@@ -76,12 +76,8 @@ class RenewalCoalescentModel(RtModel):
             "coalescent_likelihood",
             RenewalCoalescentModel.piecewise_constant_log_likelihood(
                 data,
-                jnp.flip(daily_incidence),
-                jnp.flip(
-                    RenewalCoalescentModel.approx_squared_prevalence(
-                        daily_prevalence
-                    )
-                ),
+                jnp.flip(daily_incidence[:-1]),
+                jnp.flip(daily_prevalence),
             ),
         )
 
@@ -90,28 +86,10 @@ class RenewalCoalescentModel(RtModel):
     ########################
 
     @staticmethod
-    def approx_squared_prevalence(prevalence):
-        prev_diff = jnp.diff(prevalence)
-        return jnp.where(
-            prev_diff == 0.0,
-            jnp.pow(prevalence[:-1], 2.0),
-            (
-                jnp.pow(prevalence[:-1] + jnp.diff(prevalence), 3.0)
-                - jnp.pow(prevalence[:-1], 3.0)
-            )
-            / (3.0 * prev_diff),
-        )
-
-    @staticmethod
     def approx_coalescent_rate(
-        approx_squared_prevalence, force_of_infection, n_active_choose_2
+        prevalence, force_of_infection, n_active_choose_2
     ):
-        return (
-            n_active_choose_2
-            * 2.0
-            * force_of_infection
-            / approx_squared_prevalence
-        )
+        return n_active_choose_2 * 2.0 * force_of_infection / prevalence
 
     @staticmethod
     def grid_helper(
@@ -260,12 +238,14 @@ class RenewalCoalescentModel(RtModel):
         """
         Unifies sampling and rate shift times for simulation.
         """
-        assert (
-            rate_shift_times.shape[0] == force_of_infection.shape[0] - 1
-        ), f"There are {rate_shift_times.shape[0]} rate shift times, expected {rate_shift_times.shape[0] + 1} `force_of_infection` and `prevalence entries`."
+        assert rate_shift_times.shape[0] == force_of_infection.shape[0] - 1, (
+            f"There are {rate_shift_times.shape[0]} rate shift times, expected {rate_shift_times.shape[0] + 1} `force_of_infection` and `prevalence entries`."
+        )
         assert (
             force_of_infection.shape[0] == approx_squared_prevalence.shape[0]
-        ), f"Provided force_of_infection is length {force_of_infection.shape[0]} while provided prevalence is length {approx_squared_prevalence.shape[0]}"
+        ), (
+            f"Provided force_of_infection is length {force_of_infection.shape[0]} while provided prevalence is length {approx_squared_prevalence.shape[0]}"
+        )
         rate_times = np.concat(
             (
                 np.sort(rate_shift_times),
