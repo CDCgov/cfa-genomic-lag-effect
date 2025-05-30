@@ -24,7 +24,7 @@
             "n_sampled_weeks" : 12
         },
         "n_rep" : 100,
-        "i0" : [1000, 2000, 4000]
+        "i0" : [100, 200, 400]
     },
     "renewal" : {
         "comments" : ["Infectious distribution is generation_interval.csv from https://github.com/cdcent/cfa-forecast-renewal-ww/tree/main/input/saved_pmfs as of 6096f8f0"],
