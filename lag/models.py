@@ -89,7 +89,12 @@ class RenewalCoalescentModel(RtModel):
     def approx_coalescent_rate(
         prevalence, force_of_infection, n_active_choose_2
     ):
-        return n_active_choose_2 * 2.0 * force_of_infection / prevalence
+        return (
+            n_active_choose_2
+            * 2.0
+            * force_of_infection
+            / jnp.pow(prevalence, 2.0)
+        )
 
     @staticmethod
     def grid_helper(
@@ -238,14 +243,12 @@ class RenewalCoalescentModel(RtModel):
         """
         Unifies sampling and rate shift times for simulation.
         """
-        assert rate_shift_times.shape[0] == force_of_infection.shape[0] - 1, (
-            f"There are {rate_shift_times.shape[0]} rate shift times, expected {rate_shift_times.shape[0] + 1} `force_of_infection` and `prevalence entries`."
-        )
+        assert (
+            rate_shift_times.shape[0] == force_of_infection.shape[0] - 1
+        ), f"There are {rate_shift_times.shape[0]} rate shift times, expected {rate_shift_times.shape[0] + 1} `force_of_infection` and `prevalence entries`."
         assert (
             force_of_infection.shape[0] == approx_squared_prevalence.shape[0]
-        ), (
-            f"Provided force_of_infection is length {force_of_infection.shape[0]} while provided prevalence is length {approx_squared_prevalence.shape[0]}"
-        )
+        ), f"Provided force_of_infection is length {force_of_infection.shape[0]} while provided prevalence is length {approx_squared_prevalence.shape[0]}"
         rate_times = np.concat(
             (
                 np.sort(rate_shift_times),

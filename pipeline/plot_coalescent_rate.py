@@ -63,7 +63,7 @@ if __name__ == "__main__":
         marker=".",
     )
     axs[3].set_yscale("log")
-    axs[3].set_ylabel("Mean coalescent CCFD")
+    axs[3].set_ylabel("Mean coalescent CCDF")
 
     axs[4].scatter(np.arange(n_days - 1), sampling_counts, marker=".")
     axs[4].set_ylabel("Mean daily samples")
