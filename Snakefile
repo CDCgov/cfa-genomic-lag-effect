@@ -20,25 +20,25 @@ rule all:
 rule diagnostics:
     input:
         expand(
-            "pipeline/output/coalescent/{scenario}_{i0}.png",
+            "pipeline/output/diagnostics/coalescent/{scenario}_{i0}.png",
             scenario=scenario_list,
             i0=config["simulations"]["i0"],
         ),
         expand(
-            "pipeline/output/infections/{scenario}_{i0}.png",
+            "pipeline/output/diagnostics/infections/{scenario}_{i0}.png",
             scenario=scenario_list,
             i0=config["simulations"]["i0"],
         ),
         expand(
-            "pipeline/output/rt/{scenario}.png",
+            "pipeline/output/diagnostics/rt/{scenario}.png",
             scenario=scenario_list,
         ),
         expand(
-            "pipeline/output/lag/{scaling_factor}.png",
+            "pipeline/output/diagnostics/lag/{scaling_factor}.png",
             scaling_factor=config["empirical_lag"]["scaling_factors"],
         ),
         expand(
-            "pipeline/output/coalescent/{scenario}_{i0}_{scaling_factor}.png",
+            "pipeline/output/diagnostics/coalescent/{scenario}_{i0}_{scaling_factor}.png",
             scenario=scenario_list,
             i0=config["simulations"]["i0"],
             scaling_factor=config["empirical_lag"]["scaling_factors"],
@@ -65,7 +65,7 @@ rule plot_rt_diagnostic:
         "pipeline/input/rt/{scenario}.txt"
 
     output:
-        "pipeline/output/rt/{scenario}.png",
+        "pipeline/output/diagnostics/rt/{scenario}.png",
 
     shell:
         "python3 -m pipeline.plot_rt --config pipeline/config.json --scenario {wildcards.scenario} --infile {input} --outfile {output}"
@@ -85,7 +85,7 @@ rule plot_infection_diagnostics:
         "pipeline/output/infections/{scenario}_{i0}.json"
 
     output:
-        "pipeline/output/infections/{scenario}_{i0}.png"
+        "pipeline/output/diagnostics/infections/{scenario}_{i0}.png"
 
     shell:
         "python3 -m pipeline.plot_infections --config pipeline/config.json --infile {input} --outfile {output}"
@@ -95,7 +95,7 @@ rule plot_coalescent_math_diagnostics:
         "pipeline/output/infections/{scenario}_{i0}.json"
 
     output:
-        "pipeline/output/coalescent/{scenario}_{i0}.png"
+        "pipeline/output/diagnostics/coalescent/{scenario}_{i0}.png"
 
     shell:
         "python3 -m pipeline.plot_coalescent_math --config pipeline/config.json --infile {input} --outfile {output}"
@@ -116,7 +116,7 @@ rule plot_lag_diagnostic:
         "pipeline/output/rt/hash.json",
 
     output:
-        "pipeline/output/lag/{scaling_factor}.png",
+        "pipeline/output/diagnostics/lag/{scaling_factor}.png",
 
     shell:
         "python3 -m pipeline.plot_lag --config pipeline/config.json --scaling_factor {wildcards.scaling_factor} --infile {input} --outfile {output}"
@@ -143,7 +143,7 @@ rule plot_coalescent_diagnostic:
         )
 
     output:
-        "pipeline/output/coalescent/{scenario}_{i0}_{scaling_factor}.png"
+        "pipeline/output/diagnostics/coalescent/{scenario}_{i0}_{scaling_factor}.png"
 
     shell:
         "python3 -m pipeline.plot_coalescent_rate --config pipeline/config.json --scenario {wildcards.scenario} --i0 {wildcards.i0} --scaling_factor {wildcards.scaling_factor} --infile {input} --outfile {output}"

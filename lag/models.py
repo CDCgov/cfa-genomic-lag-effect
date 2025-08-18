@@ -76,12 +76,8 @@ class RenewalCoalescentModel(RtModel):
             "coalescent_likelihood",
             RenewalCoalescentModel.piecewise_constant_log_likelihood(
                 data,
-                jnp.flip(daily_incidence),
-                jnp.flip(
-                    RenewalCoalescentModel.approx_squared_prevalence(
-                        daily_prevalence
-                    )
-                ),
+                jnp.flip(daily_incidence[:-1]),
+                jnp.flip(daily_prevalence),
             ),
         )
 
@@ -90,27 +86,14 @@ class RenewalCoalescentModel(RtModel):
     ########################
 
     @staticmethod
-    def approx_squared_prevalence(prevalence):
-        prev_diff = jnp.diff(prevalence)
-        return jnp.where(
-            prev_diff == 0.0,
-            jnp.pow(prevalence[:-1], 2.0),
-            (
-                jnp.pow(prevalence[:-1] + jnp.diff(prevalence), 3.0)
-                - jnp.pow(prevalence[:-1], 3.0)
-            )
-            / (3.0 * prev_diff),
-        )
-
-    @staticmethod
     def approx_coalescent_rate(
-        approx_squared_prevalence, force_of_infection, n_active_choose_2
+        prevalence, force_of_infection, n_active_choose_2
     ):
         return (
             n_active_choose_2
             * 2.0
             * force_of_infection
-            / approx_squared_prevalence
+            / jnp.pow(prevalence, 2.0)
         )
 
     @staticmethod
