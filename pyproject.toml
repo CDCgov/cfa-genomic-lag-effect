@@ -1,38 +1,44 @@
-[tool.poetry]
+[project]
 name = "lag"
 version = "0.1.0"
 description = ""
-authors = ["afmagee42 <rzg0@cdc.gov>"]
+authors = [{ name = "afmagee42", email = "rzg0@cdc.gov" }]
+requires-python = "~=3.12"
 readme = "README.md"
+dependencies = [
+    "numpy>=2.2.3,<3",
+    "numpyro>=0.17.0,<0.18",
+    "jax>=0.5.2,<0.6",
+    "dendropy>=5.0.1,<6",
+    "arviz>=0.21.0,<0.22",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-numpy = "^2.2.3"
-numpyro = "^0.17.0"
-jax = "^0.5.2"
-dendropy = "^5.0.1"
-arviz = "^0.21.0"
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4,<9",
+    "typing-extensions>=4.13.1,<5",
+    "mkdocs>=1.6.1,<2",
+    "mkdocstrings-python>=1.16.10,<2",
+    "mkdocstrings>=0.29.1,<0.30",
+    "mkdocs-material>=9.6.11,<10",
+    "mdx-truly-sane-lists~=1.3",
+    "pymdocx>=0.4.1,<0.5",
+    "pymdown-extensions>=10.14.3,<11",
+    "mkdocs-bibtex>=4.2.5,<5",
+]
+pipeline = [
+    "scipy>=1.15.2,<2",
+    "polars>=1.26.0,<2",
+    "matplotlib>=3.10.1,<4",
+    "snakemake>=9.1.9,<10",
+]
 
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.4"
-typing-extensions = "^4.13.1"
-mkdocs = "^1.6.1"
-mkdocstrings-python = "^1.16.10"
-mkdocstrings = "^0.29.1"
-mkdocs-material = "^9.6.11"
-mdx-truly-sane-lists = "^1.3"
-pymdocx = "^0.4.1"
-pymdown-extensions = "^10.14.3"
-mkdocs-bibtex = "^4.2.5"
-
-
-[tool.poetry.group.pipeline.dependencies]
-scipy = "^1.15.2"
-polars = "^1.26.0"
-matplotlib = "^3.10.1"
-snakemake = "^9.1.9"
+[tool.uv]
+default-groups = [
+    "dev",
+    "pipeline",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
