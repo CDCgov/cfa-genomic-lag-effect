@@ -23,7 +23,7 @@ mkdocstrings = "^0.29.1"
 mkdocs-material = "^9.6.11"
 mdx-truly-sane-lists = "^1.3"
 pymdocx = "^0.4.1"
-pymdown-extensions = "^10.14.3"
+pymdown-extensions = "^10.16.1"
 mkdocs-bibtex = "^4.2.5"
 
 
